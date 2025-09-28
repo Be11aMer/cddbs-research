@@ -9,7 +9,7 @@
 3. Run all cells
 4. Execute: `run_cddbs_analysis(‚RT‘, ‚rt.com‘, ‚Russia‘)`
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Be11aMer/cddbs-research/main/notebooks/CDDBS_Main.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Be11aMer/cddbs-research/blob/main/notebooks/CDDBS_Main.ipynb)
 
 ## 🎯 Project Status
 
