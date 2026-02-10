@@ -1,0 +1,189 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "CDDBS Intelligence Briefing",
+  "description": "Schema for CDDBS v1.1 intelligence briefing output format",
+  "version": "1.0.0-draft",
+  "type": "object",
+  "required": [
+    "metadata",
+    "executive_summary",
+    "key_findings",
+    "subject_profile",
+    "confidence_assessment"
+  ],
+  "properties": {
+    "metadata": {
+      "type": "object",
+      "required": ["briefing_id", "generated_at", "model_version", "prompt_version"],
+      "properties": {
+        "briefing_id": {
+          "type": "string",
+          "format": "uuid",
+          "description": "Unique identifier for this briefing"
+        },
+        "generated_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp of briefing generation"
+        },
+        "model_version": {
+          "type": "string",
+          "description": "LLM model identifier used for analysis"
+        },
+        "prompt_version": {
+          "type": "string",
+          "description": "System prompt version (e.g., v1.1)"
+        },
+        "cddbs_version": {
+          "type": "string",
+          "description": "CDDBS application version"
+        },
+        "analysis_period": {
+          "type": "object",
+          "properties": {
+            "start": { "type": "string", "format": "date" },
+            "end": { "type": "string", "format": "date" }
+          }
+        }
+      }
+    },
+    "executive_summary": {
+      "type": "string",
+      "description": "2-3 sentence overview of findings",
+      "maxLength": 1000
+    },
+    "key_findings": {
+      "type": "array",
+      "description": "Ordered list of key findings",
+      "minItems": 1,
+      "maxItems": 10,
+      "items": {
+        "type": "object",
+        "required": ["finding", "confidence"],
+        "properties": {
+          "finding": {
+            "type": "string",
+            "description": "Clear, actionable finding statement"
+          },
+          "confidence": {
+            "type": "string",
+            "enum": ["high", "moderate", "low"],
+            "description": "Confidence level for this specific finding"
+          },
+          "evidence_refs": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "References to supporting evidence"
+          }
+        }
+      }
+    },
+    "subject_profile": {
+      "type": "object",
+      "required": ["account_handle", "platform"],
+      "properties": {
+        "account_handle": {
+          "type": "string",
+          "description": "The subject account's handle/username"
+        },
+        "platform": {
+          "type": "string",
+          "enum": ["twitter", "telegram", "facebook", "instagram", "youtube", "tiktok", "other"],
+          "description": "Social media platform"
+        },
+        "account_created": {
+          "type": "string",
+          "format": "date",
+          "description": "Account creation date if known"
+        },
+        "followers": {
+          "type": "integer",
+          "description": "Follower count at time of analysis"
+        },
+        "following": {
+          "type": "integer",
+          "description": "Following count at time of analysis"
+        },
+        "total_posts_analyzed": {
+          "type": "integer",
+          "description": "Number of posts included in analysis"
+        }
+      }
+    },
+    "narrative_analysis": {
+      "type": "object",
+      "properties": {
+        "primary_narratives": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "narrative": { "type": "string" },
+              "frequency": { "type": "string", "enum": ["dominant", "frequent", "occasional"] },
+              "alignment": {
+                "type": "string",
+                "description": "Known campaign or state narrative alignment"
+              }
+            }
+          }
+        },
+        "behavioral_indicators": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Observed behavioral patterns suggesting inauthenticity or coordination"
+        },
+        "network_context": {
+          "type": "string",
+          "description": "Known associations and network patterns"
+        },
+        "source_attribution": {
+          "type": "string",
+          "description": "Assessed origin of narratives"
+        }
+      }
+    },
+    "confidence_assessment": {
+      "type": "object",
+      "required": ["overall"],
+      "properties": {
+        "overall": {
+          "type": "string",
+          "enum": ["high", "moderate", "low"],
+          "description": "Overall confidence in the assessment"
+        },
+        "factors": {
+          "type": "object",
+          "properties": {
+            "data_completeness": { "type": "string", "enum": ["high", "moderate", "low"] },
+            "source_reliability": { "type": "string", "enum": ["high", "moderate", "low"] },
+            "analytical_consistency": { "type": "string", "enum": ["high", "moderate", "low"] },
+            "corroboration": { "type": "string", "enum": ["high", "moderate", "low"] }
+          }
+        },
+        "limitations": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Known limitations and caveats of this analysis"
+        }
+      }
+    },
+    "methodology": {
+      "type": "object",
+      "properties": {
+        "data_collection": { "type": "string" },
+        "analysis_model": { "type": "string" },
+        "validation": { "type": "string" }
+      }
+    },
+    "raw_data_refs": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "References to source data (URLs, archive links)"
+    },
+    "related_briefings": {
+      "type": "array",
+      "items": { "type": "string", "format": "uuid" },
+      "description": "IDs of related CDDBS briefings"
+    }
+  }
+}
