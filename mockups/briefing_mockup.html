@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CDDBS Intelligence Briefing - Mockup v1.1</title>
+<style>
+  :root {
+    --high: #16a34a;
+    --high-bg: #dcfce7;
+    --moderate: #ca8a04;
+    --moderate-bg: #fef9c3;
+    --low: #dc2626;
+    --low-bg: #fee2e2;
+    --text: #1e293b;
+    --muted: #64748b;
+    --border: #e2e8f0;
+    --bg: #f8fafc;
+    --card-bg: #ffffff;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+  }
+
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem;
+  }
+
+  .header {
+    border-bottom: 3px solid var(--text);
+    padding-bottom: 1rem;
+    margin-bottom: 2rem;
+  }
+
+  .header h1 {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .header-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    color: var(--muted);
+    font-size: 0.875rem;
+  }
+
+  .header-meta span { white-space: nowrap; }
+
+  .confidence-badge {
+    display: inline-block;
+    padding: 0.15rem 0.6rem;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .confidence-high { background: var(--high-bg); color: var(--high); }
+  .confidence-moderate { background: var(--moderate-bg); color: var(--moderate); }
+  .confidence-low { background: var(--low-bg); color: var(--low); }
+
+  section {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+
+  section h2 {
+    font-size: 1.1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.5rem;
+    margin-bottom: 1rem;
+  }
+
+  .executive-summary {
+    background: #f0f9ff;
+    border-left: 4px solid #3b82f6;
+  }
+
+  .executive-summary p {
+    font-size: 1.05rem;
+    line-height: 1.7;
+  }
+
+  .finding {
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .finding:last-child { border-bottom: none; }
+
+  .finding-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .finding-text { font-weight: 600; flex: 1; }
+
+  .finding-evidence {
+    font-size: 0.875rem;
+    color: var(--muted);
+    padding-left: 1rem;
+  }
+
+  .evidence-tag {
+    display: inline-block;
+    background: #f1f5f9;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 0 0.4rem;
+    font-family: monospace;
+    font-size: 0.75rem;
+    color: var(--muted);
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+  }
+
+  th, td {
+    padding: 0.5rem 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+
+  th {
+    font-weight: 600;
+    color: var(--muted);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background: var(--bg);
+  }
+
+  .narrative-table td:nth-child(2),
+  .narrative-table td:nth-child(3) {
+    font-size: 0.85rem;
+  }
+
+  h3 {
+    font-size: 0.95rem;
+    margin: 1.25rem 0 0.5rem;
+    color: var(--text);
+  }
+
+  .indicator-list {
+    list-style: none;
+    padding: 0;
+  }
+
+  .indicator-list li {
+    padding: 0.4rem 0;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 0.9rem;
+  }
+
+  .indicator-list li strong {
+    color: var(--muted);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    display: inline-block;
+    min-width: 160px;
+  }
+
+  .limitations-list {
+    list-style: none;
+    padding: 0;
+  }
+
+  .limitations-list li {
+    padding: 0.4rem 0 0.4rem 1.5rem;
+    position: relative;
+    font-size: 0.9rem;
+  }
+
+  .limitations-list li::before {
+    content: "\26A0";
+    position: absolute;
+    left: 0;
+    color: var(--moderate);
+  }
+
+  .footer {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.8rem;
+    padding: 1rem 0;
+    border-top: 1px solid var(--border);
+    margin-top: 1rem;
+  }
+
+  .mockup-banner {
+    background: #7c3aed;
+    color: white;
+    text-align: center;
+    padding: 0.5rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+  }
+</style>
+</head>
+<body>
+
+<div class="mockup-banner">
+  CDDBS v1.1 BRIEFING MOCKUP - Sprint 1 Frontend Design
+</div>
+
+<div class="container">
+  <div class="header">
+    <h1>Analysis of @rt_com — RT (Russia Today) English Twitter Account</h1>
+    <div class="header-meta">
+      <span><strong>Briefing ID:</strong> a3f8c1d2-7e4b-4a9f-b6c3-2d1e8f9a0b5c</span>
+      <span><strong>Date:</strong> 2026-02-11</span>
+      <span><strong>Analyst:</strong> CDDBS v1.1.0 (Gemini 1.5 Pro)</span>
+      <span><strong>Confidence:</strong> <span class="confidence-badge confidence-high">HIGH</span></span>
+    </div>
+  </div>
+
+  <!-- Executive Summary -->
+  <section class="executive-summary">
+    <h2>Executive Summary</h2>
+    <p>
+      @rt_com is assessed with <strong>high confidence</strong> as an official Russian state media account
+      operating as a primary node in the Kremlin's international messaging infrastructure. The account
+      consistently amplifies narratives aligned with documented Russian state information operations,
+      including anti-NATO messaging, election interference narratives, and Ukraine conflict disinformation.
+      This assessment is corroborated by RT's formal designation as a Russian government-funded entity by
+      multiple Western governments and platform labels.
+    </p>
+  </section>
+
+  <!-- Key Findings -->
+  <section>
+    <h2>Key Findings</h2>
+
+    <div class="finding">
+      <div class="finding-header">
+        <span class="finding-text">1. Account operates as official Russian state media, directly funded by the Russian government through ANO TV-Novosti.</span>
+        <span class="confidence-badge confidence-high">HIGH</span>
+      </div>
+      <div class="finding-evidence">
+        <span class="evidence-tag">EXTERNAL</span> U.S. DOJ FARA registration; EU sanctions documentation; Twitter/X state media label
+      </div>
+    </div>
+
+    <div class="finding">
+      <div class="finding-header">
+        <span class="finding-text">2. Content consistently amplifies five core Russian state narratives: anti-NATO expansion, Western hypocrisy, Ukraine conflict revisionism, EU instability, and anti-sanctions messaging.</span>
+        <span class="confidence-badge confidence-high">HIGH</span>
+      </div>
+      <div class="finding-evidence">
+        <span class="evidence-tag">PATTERN</span> 847/1,200 posts (70.6%) contain one or more of the five core narratives during analysis period
+      </div>
+    </div>
+
+    <div class="finding">
+      <div class="finding-header">
+        <span class="finding-text">3. Posting patterns show coordination with RT's broadcast schedule and Kremlin press briefing timing, suggesting centralized editorial control.</span>
+        <span class="confidence-badge confidence-moderate">MODERATE</span>
+      </div>
+      <div class="finding-evidence">
+        <span class="evidence-tag">PATTERN</span> 78% of posts published within 30 minutes of RT broadcast segments; activity spikes correlate with MFA briefings
+      </div>
+    </div>
+
+    <div class="finding">
+      <div class="finding-header">
+        <span class="finding-text">4. Account serves as a "Pillar 2" (State-Funded Global Messaging) node in the GEC-defined Russian disinformation ecosystem, with content regularly amplified by proxy accounts.</span>
+        <span class="confidence-badge confidence-high">HIGH</span>
+      </div>
+      <div class="finding-evidence">
+        <span class="evidence-tag">NETWORK</span> 23 accounts in retweet network identified as probable proxies (matching GEC proxy site profiles)
+      </div>
+    </div>
+  </section>
+
+  <!-- Subject Profile -->
+  <section>
+    <h2>Subject Profile</h2>
+    <table>
+      <tr><th style="width:200px">Field</th><th>Value</th></tr>
+      <tr><td>Account Handle</td><td><strong>@rt_com</strong></td></tr>
+      <tr><td>Platform</td><td>Twitter/X</td></tr>
+      <tr><td>Account Created</td><td>2009-03-14</td></tr>
+      <tr><td>Followers</td><td>3,180,000</td></tr>
+      <tr><td>Following</td><td>1,247</td></tr>
+      <tr><td>Posts Analyzed</td><td>1,200</td></tr>
+      <tr><td>Analysis Period</td><td>2026-01-01 to 2026-02-10</td></tr>
+      <tr><td>Account Bio</td><td><em>"RT is the first Russian 24/7 English-language news channel..."</em></td></tr>
+      <tr><td>Profile Language</td><td>English</td></tr>
+      <tr><td>Verified Status</td><td>No (state-affiliated media label applied by X)</td></tr>
+    </table>
+  </section>
+
+  <!-- Narrative Analysis -->
+  <section>
+    <h2>Narrative Analysis</h2>
+
+    <h3>Primary Narratives</h3>
+    <table class="narrative-table">
+      <tr><th>Narrative</th><th>Frequency</th><th>Alignment</th></tr>
+      <tr>
+        <td>NATO expansion threatens global security</td>
+        <td><span class="confidence-badge confidence-low">Dominant</span></td>
+        <td>Core Kremlin foreign policy narrative</td>
+      </tr>
+      <tr>
+        <td>Western sanctions harm European citizens, not Russia</td>
+        <td><span class="confidence-badge confidence-moderate">Frequent</span></td>
+        <td>Anti-sanctions messaging (GEC Pillar 1)</td>
+      </tr>
+      <tr>
+        <td>Ukraine conflict driven by Western provocation</td>
+        <td><span class="confidence-badge confidence-moderate">Frequent</span></td>
+        <td>Russia MFA official position</td>
+      </tr>
+      <tr>
+        <td>EU political instability / democratic decline</td>
+        <td><span class="confidence-badge confidence-moderate">Frequent</span></td>
+        <td>EUvsDisinfo documented narrative cluster</td>
+      </tr>
+      <tr>
+        <td>Western media is biased; RT provides alternative perspective</td>
+        <td><span class="confidence-badge confidence-high">Occasional</span></td>
+        <td>"Both sides" equivalence framing</td>
+      </tr>
+    </table>
+
+    <h3>Behavioral Indicators</h3>
+    <ul class="indicator-list">
+      <li><strong>Posting frequency:</strong> ~30 posts/day, concentrated during European business hours (06:00-18:00 UTC)</li>
+      <li><strong>Language patterns:</strong> Professional English; editorial quality consistent with newsroom production</li>
+      <li><strong>Engagement ratio:</strong> 95% original content, 5% retweets (content producer, not amplifier)</li>
+      <li><strong>Coordination signals:</strong> Posting timing correlates with RT broadcast schedule and Kremlin press events</li>
+    </ul>
+
+    <h3>Network Context</h3>
+    <ul class="indicator-list">
+      <li><strong>Known associations:</strong> @SputnikInt, @maboroshka, @EmbassyofRussia, @mod_russia</li>
+      <li><strong>Amplification:</strong> Content amplified by 23 accounts matching GEC proxy profiles; RT content frequently laundered through intermediary blogs</li>
+      <li><strong>Cross-platform:</strong> Active on Telegram (RT English), YouTube (suspended in EU), Facebook (restricted)</li>
+    </ul>
+
+    <h3>Source Attribution</h3>
+    <ul class="indicator-list">
+      <li><strong>Role:</strong> Official State Media (GEC Pillar 2)</li>
+      <li><strong>Content origin:</strong> RT editorial team; supplemented by Russian MFA statements and TASS/RIA Novosti wire content</li>
+      <li><strong>Amplification chain:</strong> Kremlin &rarr; RT Editorial &rarr; @rt_com &rarr; proxy accounts &rarr; organic amplification</li>
+    </ul>
+  </section>
+
+  <!-- Confidence Assessment -->
+  <section>
+    <h2>Confidence Assessment</h2>
+
+    <p style="margin-bottom: 1rem;">
+      <strong>Overall Confidence:</strong> <span class="confidence-badge confidence-high">HIGH</span>
+    </p>
+
+    <table>
+      <tr><th>Factor</th><th>Assessment</th><th>Notes</th></tr>
+      <tr>
+        <td>Data Completeness</td>
+        <td><span class="confidence-badge confidence-high">HIGH</span></td>
+        <td>1,200 posts over 40-day period; comprehensive public data</td>
+      </tr>
+      <tr>
+        <td>Source Reliability</td>
+        <td><span class="confidence-badge confidence-high">HIGH</span></td>
+        <td>Twitter/X API data; corroborated by government designations</td>
+      </tr>
+      <tr>
+        <td>Analytical Consistency</td>
+        <td><span class="confidence-badge confidence-high">HIGH</span></td>
+        <td>Content, behavioral, and network indicators all consistent</td>
+      </tr>
+      <tr>
+        <td>Corroboration</td>
+        <td><span class="confidence-badge confidence-high">HIGH</span></td>
+        <td>Assessment aligns with DOJ FARA filing, EU sanctions, GEC reports, EUvsDisinfo database</td>
+      </tr>
+    </table>
+  </section>
+
+  <!-- Limitations -->
+  <section>
+    <h2>Limitations &amp; Caveats</h2>
+    <ul class="limitations-list">
+      <li><strong>Cannot determine:</strong> Internal editorial decision-making process or direct Kremlin editorial directives</li>
+      <li><strong>Data gaps:</strong> Deleted posts not captured; DMs and internal communications unavailable; pre-analysis period activity not included</li>
+      <li><strong>Alternative interpretations:</strong> Some narrative overlap with legitimate critical journalism perspectives (anti-war, anti-establishment)</li>
+      <li><strong>Assessment-changing factors:</strong> Discovery of editorial independence from state directives would significantly lower confidence in state-media assessment</li>
+    </ul>
+  </section>
+
+  <!-- Methodology -->
+  <section>
+    <h2>Methodology</h2>
+    <table>
+      <tr><th style="width:200px">Parameter</th><th>Value</th></tr>
+      <tr><td>Data Collection</td><td>Twitter/X API v2 (academic access)</td></tr>
+      <tr><td>Collection Period</td><td>2026-01-01 to 2026-02-10</td></tr>
+      <tr><td>Posts Analyzed</td><td>1,200</td></tr>
+      <tr><td>Analysis Model</td><td>Gemini 1.5 Pro</td></tr>
+      <tr><td>Prompt Version</td><td>v1.1</td></tr>
+      <tr><td>CDDBS Version</td><td>v1.1.0</td></tr>
+      <tr><td>Validation</td><td>Cross-referenced with EUvsDisinfo database, GEC Pillars report, DOJ FARA records</td></tr>
+    </table>
+  </section>
+
+  <div class="footer">
+    <p>Generated by CDDBS v1.1.0 | Briefing ID: a3f8c1d2-7e4b-4a9f-b6c3-2d1e8f9a0b5c</p>
+    <p>This briefing is for research purposes only and does not represent the views of any government or organization.</p>
+  </div>
+</div>
+
+</body>
+</html>

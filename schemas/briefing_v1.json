@@ -1,20 +1,23 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "CDDBS Intelligence Briefing",
-  "description": "Schema for CDDBS v1.1 intelligence briefing output format",
-  "version": "1.0.0-draft",
+  "title": "CDDBS Intelligence Briefing v1.1",
+  "description": "Schema for CDDBS v1.1 intelligence briefing output. Informed by analysis of 10 professional intelligence briefing formats (EUvsDisinfo, DFRLab, Bellingcat, NATO StratCom COE, Stanford IO, Graphika, RAND, UK DCMS, GEC, Oxford II).",
+  "version": "1.1.0",
   "type": "object",
   "required": [
     "metadata",
     "executive_summary",
     "key_findings",
     "subject_profile",
-    "confidence_assessment"
+    "confidence_assessment",
+    "limitations",
+    "methodology"
   ],
   "properties": {
     "metadata": {
       "type": "object",
-      "required": ["briefing_id", "generated_at", "model_version", "prompt_version"],
+      "description": "Briefing metadata and provenance information",
+      "required": ["briefing_id", "generated_at", "model_version", "prompt_version", "cddbs_version"],
       "properties": {
         "briefing_id": {
           "type": "string",
@@ -28,7 +31,7 @@
         },
         "model_version": {
           "type": "string",
-          "description": "LLM model identifier used for analysis"
+          "description": "LLM model identifier used for analysis (e.g., gemini-1.5-pro)"
         },
         "prompt_version": {
           "type": "string",
@@ -36,10 +39,12 @@
         },
         "cddbs_version": {
           "type": "string",
-          "description": "CDDBS application version"
+          "description": "CDDBS application version (e.g., 1.1.0)"
         },
         "analysis_period": {
           "type": "object",
+          "description": "Time range of data included in analysis",
+          "required": ["start", "end"],
           "properties": {
             "start": { "type": "string", "format": "date" },
             "end": { "type": "string", "format": "date" }
@@ -47,39 +52,59 @@
         }
       }
     },
+
     "executive_summary": {
       "type": "string",
-      "description": "2-3 sentence overview of findings",
+      "description": "2-3 sentence overview: (1) assessed nature of account, (2) why it matters, (3) confidence level. Inspired by RAND key findings box.",
+      "minLength": 50,
       "maxLength": 1000
     },
+
     "key_findings": {
       "type": "array",
-      "description": "Ordered list of key findings",
+      "description": "Ordered list of 3-5 key findings, each with per-finding confidence (CDDBS innovation).",
       "minItems": 1,
-      "maxItems": 10,
+      "maxItems": 5,
       "items": {
         "type": "object",
-        "required": ["finding", "confidence"],
+        "required": ["finding", "confidence", "evidence"],
         "properties": {
           "finding": {
             "type": "string",
-            "description": "Clear, actionable finding statement"
+            "description": "Clear, specific, actionable finding statement"
           },
           "confidence": {
             "type": "string",
             "enum": ["high", "moderate", "low"],
             "description": "Confidence level for this specific finding"
           },
-          "evidence_refs": {
+          "evidence": {
             "type": "array",
-            "items": { "type": "string" },
-            "description": "References to supporting evidence"
+            "description": "Evidence supporting this finding",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": ["type", "reference"],
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": ["post", "pattern", "network", "metadata", "external"],
+                  "description": "Evidence type label (post=specific post, pattern=behavioral, network=relationship, metadata=account data, external=third-party source)"
+                },
+                "reference": {
+                  "type": "string",
+                  "description": "Specific reference to the evidence (URL, description with metrics, source citation)"
+                }
+              }
+            }
           }
         }
       }
     },
+
     "subject_profile": {
       "type": "object",
+      "description": "Structured account metadata. Inspired by EUvsDisinfo consistent entries and DFRLab profiling.",
       "required": ["account_handle", "platform"],
       "properties": {
         "account_handle": {
@@ -88,7 +113,7 @@
         },
         "platform": {
           "type": "string",
-          "enum": ["twitter", "telegram", "facebook", "instagram", "youtube", "tiktok", "other"],
+          "enum": ["twitter", "telegram", "facebook", "instagram", "youtube", "tiktok", "vkontakte", "other"],
           "description": "Social media platform"
         },
         "account_created": {
@@ -98,53 +123,126 @@
         },
         "followers": {
           "type": "integer",
+          "minimum": 0,
           "description": "Follower count at time of analysis"
         },
         "following": {
           "type": "integer",
+          "minimum": 0,
           "description": "Following count at time of analysis"
         },
         "total_posts_analyzed": {
           "type": "integer",
+          "minimum": 1,
           "description": "Number of posts included in analysis"
+        },
+        "account_bio": {
+          "type": "string",
+          "description": "Current bio/description text"
+        },
+        "profile_language": {
+          "type": "string",
+          "description": "Primary language of profile and posts"
+        },
+        "verified": {
+          "type": "boolean",
+          "description": "Whether the account has platform verification"
         }
       }
     },
+
     "narrative_analysis": {
       "type": "object",
+      "description": "Multi-dimensional content and behavioral analysis. Inspired by GEC pillars, OII comparative framework, Graphika network+semantic+temporal approach.",
       "properties": {
         "primary_narratives": {
           "type": "array",
+          "description": "Dominant narratives promoted by this account",
           "items": {
             "type": "object",
+            "required": ["narrative", "frequency"],
             "properties": {
-              "narrative": { "type": "string" },
-              "frequency": { "type": "string", "enum": ["dominant", "frequent", "occasional"] },
+              "narrative": {
+                "type": "string",
+                "description": "Clear description of the narrative"
+              },
+              "frequency": {
+                "type": "string",
+                "enum": ["dominant", "frequent", "occasional"],
+                "description": "How often this narrative appears"
+              },
               "alignment": {
                 "type": "string",
-                "description": "Known campaign or state narrative alignment"
+                "description": "Known campaign or state narrative this aligns with (if any)"
               }
             }
           }
         },
         "behavioral_indicators": {
           "type": "array",
-          "items": { "type": "string" },
-          "description": "Observed behavioral patterns suggesting inauthenticity or coordination"
+          "description": "Observable behavioral patterns. Each should use precise attribution language.",
+          "items": {
+            "type": "object",
+            "required": ["indicator", "description"],
+            "properties": {
+              "indicator": {
+                "type": "string",
+                "enum": ["posting_frequency", "language_patterns", "engagement_ratio", "coordination_signals", "timing_patterns", "content_amplification", "other"],
+                "description": "Type of behavioral indicator"
+              },
+              "description": {
+                "type": "string",
+                "description": "Specific observation with metrics where possible"
+              }
+            }
+          }
         },
         "network_context": {
-          "type": "string",
-          "description": "Known associations and network patterns"
+          "type": "object",
+          "description": "Network relationships and amplification patterns",
+          "properties": {
+            "known_associations": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Accounts frequently interacted with"
+            },
+            "amplification_patterns": {
+              "type": "string",
+              "description": "Who amplifies this account and who this account amplifies"
+            },
+            "cross_platform_presence": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Same identity on other platforms"
+            }
+          }
         },
         "source_attribution": {
-          "type": "string",
-          "description": "Assessed origin of narratives"
+          "type": "object",
+          "description": "Assessment of where narratives originate. Inspired by GEC pillar classification.",
+          "properties": {
+            "role": {
+              "type": "string",
+              "enum": ["official_state_media", "proxy", "deniable", "authentic", "unknown"],
+              "description": "Assessed role in the disinformation ecosystem"
+            },
+            "content_origin": {
+              "type": "string",
+              "description": "Where narratives appear to originate"
+            },
+            "amplification_chain": {
+              "type": "string",
+              "description": "How content reaches this account"
+            }
+          }
         }
       }
     },
+
     "confidence_assessment": {
       "type": "object",
-      "required": ["overall"],
+      "description": "Formal confidence framework. Synthesized from Graphika (multi-dimensional), NATO StratCom (assessment language), intelligence community standards.",
+      "required": ["overall", "factors"],
       "properties": {
         "overall": {
           "type": "string",
@@ -153,37 +251,136 @@
         },
         "factors": {
           "type": "object",
+          "description": "Per-factor confidence breakdown (CDDBS innovation)",
+          "required": ["data_completeness", "source_reliability", "analytical_consistency", "corroboration"],
           "properties": {
-            "data_completeness": { "type": "string", "enum": ["high", "moderate", "low"] },
-            "source_reliability": { "type": "string", "enum": ["high", "moderate", "low"] },
-            "analytical_consistency": { "type": "string", "enum": ["high", "moderate", "low"] },
-            "corroboration": { "type": "string", "enum": ["high", "moderate", "low"] }
+            "data_completeness": {
+              "type": "string",
+              "enum": ["high", "moderate", "low"],
+              "description": "How complete is the data available for analysis?"
+            },
+            "source_reliability": {
+              "type": "string",
+              "enum": ["high", "moderate", "low"],
+              "description": "How reliable are the data sources used?"
+            },
+            "analytical_consistency": {
+              "type": "string",
+              "enum": ["high", "moderate", "low"],
+              "description": "How consistent are the indicators across dimensions?"
+            },
+            "corroboration": {
+              "type": "string",
+              "enum": ["high", "moderate", "low"],
+              "description": "Multiple independent indicators supporting the assessment?"
+            }
           }
-        },
-        "limitations": {
-          "type": "array",
-          "items": { "type": "string" },
-          "description": "Known limitations and caveats of this analysis"
         }
       }
     },
-    "methodology": {
+
+    "limitations": {
       "type": "object",
+      "description": "Mandatory limitations section. Inspired by Bellingcat's explicit gaps and SIO's transparency.",
+      "required": ["cannot_determine", "data_gaps"],
       "properties": {
-        "data_collection": { "type": "string" },
-        "analysis_model": { "type": "string" },
-        "validation": { "type": "string" }
+        "cannot_determine": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "What this analysis cannot establish"
+        },
+        "data_gaps": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Known missing data"
+        },
+        "alternative_interpretations": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Plausible alternative explanations for observed behavior"
+        },
+        "assessment_changing_factors": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "What new evidence would change this assessment"
+        }
       }
     },
-    "raw_data_refs": {
-      "type": "array",
-      "items": { "type": "string" },
-      "description": "References to source data (URLs, archive links)"
+
+    "methodology": {
+      "type": "object",
+      "description": "Methodology transparency. Inspired by SIO, OII, DFRLab.",
+      "required": ["data_collection", "analysis_model", "prompt_version"],
+      "properties": {
+        "data_collection": {
+          "type": "string",
+          "description": "How data was gathered (API, scraping, manual)"
+        },
+        "collection_period": {
+          "type": "object",
+          "properties": {
+            "start": { "type": "string", "format": "date" },
+            "end": { "type": "string", "format": "date" }
+          }
+        },
+        "posts_analyzed": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total number of posts analyzed"
+        },
+        "analysis_model": {
+          "type": "string",
+          "description": "LLM model used for analysis"
+        },
+        "prompt_version": {
+          "type": "string",
+          "description": "System prompt version"
+        },
+        "validation": {
+          "type": "string",
+          "description": "Any human review or cross-checking performed"
+        }
+      }
     },
+
+    "evidence_references": {
+      "type": "array",
+      "description": "Full evidence reference table. Inspired by Bellingcat and DFRLab.",
+      "items": {
+        "type": "object",
+        "required": ["type", "reference"],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "Reference number for cross-referencing from findings"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["post", "pattern", "network", "metadata", "external"]
+          },
+          "reference": {
+            "type": "string",
+            "description": "URL, archived link, or detailed description"
+          },
+          "notes": {
+            "type": "string",
+            "description": "Context about the evidence"
+          }
+        }
+      }
+    },
+
     "related_briefings": {
       "type": "array",
-      "items": { "type": "string", "format": "uuid" },
-      "description": "IDs of related CDDBS briefings"
+      "description": "IDs of related CDDBS briefings for cross-referencing",
+      "items": {
+        "type": "object",
+        "properties": {
+          "briefing_id": { "type": "string", "format": "uuid" },
+          "subject": { "type": "string" },
+          "relationship": { "type": "string" }
+        }
+      }
     }
   }
 }
