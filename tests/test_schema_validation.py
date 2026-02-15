@@ -61,7 +61,7 @@ class TestSchemaValidity:
             assert field in required, f"Missing required field: {field}"
 
     def test_schema_version(self, schema):
-        assert schema.get("version") == "1.1.0"
+        assert schema.get("version") == "1.2.0"
 
 
 class TestValidBriefings:
