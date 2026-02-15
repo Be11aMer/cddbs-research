@@ -27,7 +27,7 @@ REQUIRED_SECTIONS = [
 ]
 
 CONFIDENCE_LEVELS = {"high", "moderate", "low"}
-EVIDENCE_TYPES = {"post", "pattern", "network", "metadata", "external"}
+EVIDENCE_TYPES = {"post", "pattern", "network", "metadata", "external", "forward", "channel_meta"}
 INDICATOR_TYPES = {
     "posting_frequency",
     "language_patterns",
@@ -35,6 +35,10 @@ INDICATOR_TYPES = {
     "coordination_signals",
     "timing_patterns",
     "content_amplification",
+    "forwarding_pattern",
+    "channel_growth",
+    "bot_activity",
+    "message_deletion",
     "other",
 }
 
@@ -80,6 +84,12 @@ def score_structural_completeness(briefing: dict) -> tuple[int, list[str]]:
         score += 1
     else:
         issues.append("No related_briefings field")
+
+    # v1.2 bonus: cross-platform identities or network graph present
+    has_xp = bool(briefing.get("cross_platform_identities"))
+    has_graph = bool(briefing.get("network_graph", {}).get("nodes"))
+    if has_xp or has_graph:
+        score += 1  # bonus for multi-platform/network enrichment
 
     return min(score, 10), issues
 

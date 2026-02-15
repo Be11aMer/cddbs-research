@@ -21,7 +21,11 @@
           "source_refs": ["EUvsDisinfo database", "GEC Pillar 1"],
           "frequency": "dominant",
           "first_documented": "2007",
-          "active": true
+          "active": true,
+          "propagation": {
+            "twitter": "Amplified by RT and Sputnik accounts; high retweet velocity during NATO summits",
+            "telegram": "Forwarded heavily through military/geopolitics Telegram channels; often paired with maps and military footage"
+          }
         },
         {
           "id": "anti_nato_002",
@@ -125,7 +129,11 @@
           "source_refs": ["EUvsDisinfo database", "GEC Pillar 1", "NATO StratCom COE"],
           "frequency": "dominant",
           "first_documented": "2014",
-          "active": true
+          "active": true,
+          "propagation": {
+            "twitter": "Amplified alongside Azov-related content; hashtag campaigns (#denazification)",
+            "telegram": "Dominant in Russian-language war correspondent channels; visual content (photos, videos) forwarded rapidly through channel networks"
+          }
         },
         {
           "id": "ukraine_002",
@@ -291,10 +299,53 @@
           "active": true
         }
       ]
+    },
+    {
+      "id": "telegram_amplification",
+      "name": "Telegram-Specific Amplification Patterns",
+      "description": "Narrative patterns and techniques specific to Telegram's platform architecture, including forwarding chain manipulation and channel network coordination",
+      "narratives": [
+        {
+          "id": "tg_amp_001",
+          "name": "Forwarding chain laundering",
+          "description": "State media content is forwarded through a chain of increasingly 'independent'-appearing channels to strip perceived state association before reaching organic audiences.",
+          "keywords": ["forwarded from", "originally posted", "repost", "share this", "spread the truth"],
+          "example_claims": [
+            "Content appears as 'Forwarded from Geopolitics Daily' but traces back to RT through 2-3 intermediate channels",
+            "Anonymous channel posts RT content without forwarding attribution (copy-paste to strip source)"
+          ],
+          "source_refs": ["DFRLab Telegram analysis", "EU DisinfoLab Doppelganger report"],
+          "frequency": "dominant",
+          "first_documented": "2022",
+          "active": true,
+          "propagation": {
+            "telegram": "Primary platform — exploits Telegram's forwarding chain visibility and anonymous channel admin features"
+          }
+        },
+        {
+          "id": "tg_amp_002",
+          "name": "Censorship refugee narrative",
+          "description": "Claims that content was 'banned' or 'censored' on mainstream platforms, driving audiences to Telegram channels as 'uncensored truth' sources.",
+          "keywords": ["banned", "censored", "deleted by", "they don't want you to see", "uncensored", "join our Telegram", "truth channel"],
+          "example_claims": [
+            "This video was deleted from YouTube — watch it here before they remove it",
+            "Twitter banned us for telling the truth — follow our Telegram for uncensored news",
+            "The mainstream media won't show you this — share on Telegram"
+          ],
+          "source_refs": ["Graphika platform migration studies", "Stanford IO cross-platform analysis"],
+          "frequency": "frequent",
+          "first_documented": "2022",
+          "active": true,
+          "propagation": {
+            "twitter": "Used as call-to-action to drive followers from Twitter to Telegram channels",
+            "telegram": "Channel descriptions and pinned messages frequently reference being 'censored' elsewhere"
+          }
+        }
+      ]
     }
   ],
   "metadata": {
-    "total_categories": 7,
+    "total_categories": 8,
     "total_narratives": 18,
     "primary_sources": [
       "EU EastStratCom / EUvsDisinfo database (15,000+ cases)",
