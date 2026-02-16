@@ -1,8 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "CDDBS Intelligence Briefing v1.1",
-  "description": "Schema for CDDBS v1.1 intelligence briefing output. Informed by analysis of 10 professional intelligence briefing formats (EUvsDisinfo, DFRLab, Bellingcat, NATO StratCom COE, Stanford IO, Graphika, RAND, UK DCMS, GEC, Oxford II).",
-  "version": "1.1.0",
+  "title": "CDDBS Intelligence Briefing v1.2",
+  "description": "Schema for CDDBS v1.2 intelligence briefing output. Extends v1.1 with multi-platform support (Telegram), cross-platform identity linking, and enhanced network analysis.",
+  "version": "1.2.0",
   "type": "object",
   "required": [
     "metadata",
@@ -35,11 +35,11 @@
         },
         "prompt_version": {
           "type": "string",
-          "description": "System prompt version (e.g., v1.1)"
+          "description": "System prompt version (e.g., v1.3)"
         },
         "cddbs_version": {
           "type": "string",
-          "description": "CDDBS application version (e.g., 1.1.0)"
+          "description": "CDDBS application version (e.g., 1.3.0)"
         },
         "analysis_period": {
           "type": "object",
@@ -88,8 +88,8 @@
               "properties": {
                 "type": {
                   "type": "string",
-                  "enum": ["post", "pattern", "network", "metadata", "external"],
-                  "description": "Evidence type label (post=specific post, pattern=behavioral, network=relationship, metadata=account data, external=third-party source)"
+                  "enum": ["post", "pattern", "network", "metadata", "external", "forward", "channel_meta"],
+                  "description": "Evidence type label. v1.2 adds: forward=Telegram forwarded message chain, channel_meta=Telegram channel/group metadata"
                 },
                 "reference": {
                   "type": "string",
@@ -114,7 +114,7 @@
         "platform": {
           "type": "string",
           "enum": ["twitter", "telegram", "facebook", "instagram", "youtube", "tiktok", "vkontakte", "other"],
-          "description": "Social media platform"
+          "description": "Primary social media platform"
         },
         "account_created": {
           "type": "string",
@@ -124,17 +124,17 @@
         "followers": {
           "type": "integer",
           "minimum": 0,
-          "description": "Follower count at time of analysis"
+          "description": "Follower/subscriber count at time of analysis"
         },
         "following": {
           "type": "integer",
           "minimum": 0,
-          "description": "Following count at time of analysis"
+          "description": "Following count at time of analysis (N/A for Telegram channels)"
         },
         "total_posts_analyzed": {
           "type": "integer",
           "minimum": 1,
-          "description": "Number of posts included in analysis"
+          "description": "Number of posts/messages included in analysis"
         },
         "account_bio": {
           "type": "string",
@@ -147,6 +147,42 @@
         "verified": {
           "type": "boolean",
           "description": "Whether the account has platform verification"
+        },
+        "platform_metadata": {
+          "type": "object",
+          "description": "Platform-specific metadata fields (v1.2). Contents vary by platform.",
+          "properties": {
+            "telegram_channel_type": {
+              "type": "string",
+              "enum": ["channel", "group", "supergroup", "bot"],
+              "description": "Telegram entity type"
+            },
+            "telegram_subscriber_count": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Telegram channel/group subscriber count"
+            },
+            "telegram_is_verified": {
+              "type": "boolean",
+              "description": "Whether the Telegram channel has a verified badge"
+            },
+            "telegram_linked_chat": {
+              "type": "string",
+              "description": "Linked discussion group handle (for channels with comment sections)"
+            },
+            "telegram_invite_link": {
+              "type": "string",
+              "description": "Public invite link if available"
+            },
+            "twitter_list_memberships": {
+              "type": "integer",
+              "description": "Number of Twitter lists the account is a member of"
+            },
+            "twitter_is_blue_verified": {
+              "type": "boolean",
+              "description": "Whether the account has Twitter Blue/Premium verification"
+            }
+          }
         }
       }
     },
@@ -187,8 +223,13 @@
             "properties": {
               "indicator": {
                 "type": "string",
-                "enum": ["posting_frequency", "language_patterns", "engagement_ratio", "coordination_signals", "timing_patterns", "content_amplification", "other"],
-                "description": "Type of behavioral indicator"
+                "enum": [
+                  "posting_frequency", "language_patterns", "engagement_ratio",
+                  "coordination_signals", "timing_patterns", "content_amplification",
+                  "forwarding_pattern", "channel_growth", "bot_activity",
+                  "message_deletion", "other"
+                ],
+                "description": "Type of behavioral indicator. v1.2 adds Telegram-specific: forwarding_pattern, channel_growth, bot_activity, message_deletion"
               },
               "description": {
                 "type": "string",
@@ -233,6 +274,125 @@
             "amplification_chain": {
               "type": "string",
               "description": "How content reaches this account"
+            }
+          }
+        }
+      }
+    },
+
+    "cross_platform_identities": {
+      "type": "array",
+      "description": "Cross-platform identity links for this entity (v1.2). Documents the same actor's presence across multiple platforms.",
+      "items": {
+        "type": "object",
+        "required": ["platform", "handle", "confidence"],
+        "properties": {
+          "platform": {
+            "type": "string",
+            "enum": ["twitter", "telegram", "facebook", "instagram", "youtube", "tiktok", "vkontakte", "other"],
+            "description": "Platform where linked identity exists"
+          },
+          "handle": {
+            "type": "string",
+            "description": "Account handle on the linked platform"
+          },
+          "confidence": {
+            "type": "string",
+            "enum": ["high", "moderate", "low"],
+            "description": "Confidence in the identity link"
+          },
+          "linking_evidence": {
+            "type": "string",
+            "description": "Evidence supporting the cross-platform link (e.g., bio cross-reference, content timing, shared URLs)"
+          },
+          "briefing_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "CDDBS briefing ID for this linked identity, if one exists"
+          }
+        }
+      }
+    },
+
+    "network_graph": {
+      "type": "object",
+      "description": "Network graph data for visualization and analysis (v1.2). Captures the amplification/interaction network around the subject.",
+      "properties": {
+        "nodes": {
+          "type": "array",
+          "description": "Network nodes (accounts/entities)",
+          "items": {
+            "type": "object",
+            "required": ["id", "platform"],
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Node identifier (typically account handle)"
+              },
+              "platform": {
+                "type": "string",
+                "enum": ["twitter", "telegram", "facebook", "instagram", "youtube", "tiktok", "vkontakte", "other"]
+              },
+              "role": {
+                "type": "string",
+                "enum": ["subject", "source", "amplifier", "target", "peer", "unknown"],
+                "description": "Role of this node relative to the subject"
+              },
+              "label": {
+                "type": "string",
+                "description": "Display label for visualization"
+              }
+            }
+          }
+        },
+        "edges": {
+          "type": "array",
+          "description": "Network edges (interactions/relationships)",
+          "items": {
+            "type": "object",
+            "required": ["from", "to", "type"],
+            "properties": {
+              "from": {
+                "type": "string",
+                "description": "Source node ID"
+              },
+              "to": {
+                "type": "string",
+                "description": "Target node ID"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["retweet", "reply", "mention", "forward", "quote", "follow", "amplification"],
+                "description": "Type of interaction"
+              },
+              "weight": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "Interaction count/strength"
+              }
+            }
+          }
+        },
+        "communities": {
+          "type": "array",
+          "description": "Detected network communities/clusters",
+          "items": {
+            "type": "object",
+            "required": ["id", "members"],
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Community identifier"
+              },
+              "label": {
+                "type": "string",
+                "description": "Descriptive label for the community"
+              },
+              "members": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Node IDs belonging to this community"
+              }
             }
           }
         }
@@ -356,7 +516,7 @@
           },
           "type": {
             "type": "string",
-            "enum": ["post", "pattern", "network", "metadata", "external"]
+            "enum": ["post", "pattern", "network", "metadata", "external", "forward", "channel_meta"]
           },
           "reference": {
             "type": "string",

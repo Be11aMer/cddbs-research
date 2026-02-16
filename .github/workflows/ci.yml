@@ -25,11 +25,9 @@ jobs:
         run: |
           python -m pytest tests/ -v
 
-      - name: Run quality scorer on fixtures
+      - name: Run quality scorer on all fixtures
         run: |
-          python -m tools.quality_scorer tests/fixtures/high_quality_briefing.json
-          python -m tools.quality_scorer tests/fixtures/medium_quality_briefing.json
-          python -m tools.quality_scorer tests/fixtures/low_quality_briefing.json
+          python -m tools.quality_scorer --fixtures
 
   validate:
     runs-on: ubuntu-latest
@@ -122,7 +120,7 @@ jobs:
 
       - name: Check key files exist
         run: |
-          for f in README.md templates/intelligence_briefing.md docs/sprint_1_quickstart.md docs/cddbs_execution_plan.md docs/sprint_2_backlog.md; do
+          for f in README.md templates/intelligence_briefing.md docs/sprint_1_quickstart.md docs/cddbs_execution_plan.md docs/sprint_2_backlog.md docs/sprint_3_backlog.md; do
             if [ -f "$f" ]; then
               echo "OK: $f exists"
             else

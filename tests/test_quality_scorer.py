@@ -127,6 +127,48 @@ class TestMinimalBriefing:
         )
 
 
+class TestTelegramBriefing:
+    """Telegram channel briefing should score well (>= 60)."""
+
+    @pytest.fixture
+    def telegram_channel(self):
+        with open(FIXTURES_DIR / "telegram_channel_briefing.json") as f:
+            return json.load(f)
+
+    def test_total_score_excellent(self, telegram_channel):
+        result = score_briefing(telegram_channel)
+        assert result["total_score"] >= 60, (
+            f"Expected >= 60, got {result['total_score']}"
+        )
+
+    def test_evidence_types_recognized(self, telegram_channel):
+        score, issues = score_attribution_quality(telegram_channel)
+        assert score >= 8, f"Expected >= 8, got {score}. Issues: {issues}"
+
+    def test_structural_with_network_graph(self, telegram_channel):
+        score, issues = score_structural_completeness(telegram_channel)
+        assert score >= 9, f"Expected >= 9, got {score}. Issues: {issues}"
+
+
+class TestCrossPlatformBriefing:
+    """Cross-platform briefing should score well."""
+
+    @pytest.fixture
+    def cross_platform(self):
+        with open(FIXTURES_DIR / "cross_platform_briefing.json") as f:
+            return json.load(f)
+
+    def test_total_score_excellent(self, cross_platform):
+        result = score_briefing(cross_platform)
+        assert result["total_score"] >= 60, (
+            f"Expected >= 60, got {result['total_score']}"
+        )
+
+    def test_has_cross_platform_bonus(self, cross_platform):
+        score, _ = score_structural_completeness(cross_platform)
+        assert score >= 9  # Should get bonus for cross_platform_identities
+
+
 class TestScorerEdgeCases:
     """Test edge cases and error handling."""
 
