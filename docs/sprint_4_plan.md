@@ -1,390 +1,418 @@
-# Sprint 4: Research-to-Production Integration Plan
+# Sprint 4: Research-to-Production Integration Plan (Revised)
 
 **Sprint**: 4 — Production Integration & UX
-**Status**: PLANNING
+**Status**: READY FOR IMPLEMENTATION
 **Duration**: 2 weeks
-**Goal**: Integrate Sprints 1-3 research into the production CDDBS application
+**Goal**: Integrate Sprints 1-3 research into the live production CDDBS app
 
 ---
 
-## Current State Assessment
+## Current Production Architecture (Confirmed)
 
-### Production App (`cddbs-prod` on Codeberg)
-- **Stack**: Python (LangGraph + Gemini), Flask/FastAPI on Render
-- **Backend**: `cddbs-api.onrender.com` — 5-stage pipeline (Fetch → Analyze → Digest → Translate → Summarize)
-- **Frontend**: `cddbs-frontend.onrender.com` — Web dashboard
-- **Database**: PostgreSQL (user says migrated to Neon; execution plan originally said Supabase)
-  - 3 tables: `outlets`, `articles`, `analyses`
-- **Auth**: BYOK (Bring Your Own Key) — API keys in browser localStorage
-- **LLM**: Google Gemini (`gemini-2.5-flash`)
-- **Data Collection**: SerpAPI (news search) + BeautifulSoup (content extraction)
-- **Source Code**: Codeberg (not GitHub) — `cddbs-prod` repo
+### Backend (`src/cddbs/`)
+- **Framework**: FastAPI (uvicorn, Docker)
+- **Database**: Neon PostgreSQL via SQLAlchemy (3 tables: `outlets`, `articles`, `reports`)
+- **LLM**: Google Gemini `gemini-2.5-flash` via `google-genai` SDK
+- **Pipeline**: Single consolidated prompt in `orchestrator.py` (Fetch → Gemini → JSON parse → Store)
+- **API Endpoints**: `POST /analysis-runs`, `GET /analysis-runs`, `GET /analysis-runs/{id}`, `/health`, `/api-status`
+- **Deployment**: Render free tier, auto-deploy on push to `main` of `github.com/Be11aMer/cddbs-prod`
 
-### Research Draft (Sprints 1-3 completed)
-- **Sprint 1**: Briefing format redesign — JSON schema v1.2, 7-section template, system prompts
-- **Sprint 2**: Quality & reliability — 7-dimension quality scorer, 18 known narratives, source verification
-- **Sprint 3**: Multi-platform — Twitter/Telegram adapters, cross-platform identity resolution, network analysis, CIB detection
+### Frontend (`frontend/`)
+- **Framework**: React 18 + TypeScript + Vite + MUI 6
+- **State**: Redux Toolkit + TanStack Query
+- **Routing**: Nginx reverse proxy (`/api/` → `cddbs-api.onrender.com`)
+- **Key Components**: `RunsTable`, `RunDetail`, `ReportViewDialog`, `NewAnalysisDialog`, `SettingsDialog`
+- **Report Viewer**: Markdown-based, parses 4 sections (Source, Narrative, Analysis, Credibility)
 
-### Gap Analysis
+### Database (Neon PostgreSQL)
+```
+outlets:  id, name, url
+articles: id, outlet_id, report_id, title, link, snippet, date, meta(JSON), full_text, created_at
+reports:  id, outlet, country, final_report(Text), raw_response(Text), data(JSON), created_at
+```
 
-| Component | Production (Current) | Research (New) | Integration Work |
-|-----------|---------------------|----------------|-----------------|
-| **Output Format** | Unstructured markdown text | Structured JSON (schema v1.2) | Replace output pipeline |
-| **System Prompt** | Basic "objective briefing" prompt | v1.3 multi-platform with confidence framework | Swap prompt, validate output |
-| **Quality Control** | None | 7-dimension, 70-point auto-scorer | Add scoring post-analysis |
-| **Narrative Detection** | None | 18 known narratives with keyword matching | Add narrative matching step |
-| **Database Schema** | 3 tables (outlets, articles, analyses) | Needs: briefings, narratives, quality_scores, platform_accounts | Schema migration |
-| **Platform Support** | News article scraping only | Twitter API v2 + Telegram MTProto | Add social media adapters |
-| **Data Adapters** | BeautifulSoup scraper only | TwitterAdapter + TelegramAdapter | Integrate adapters |
-| **Analysis Pipeline** | 5 LangGraph nodes (article-focused) | Account-focused briefing generation | Extend pipeline |
-| **Frontend** | Basic React dashboard | Needs: briefing viewer, quality badges, network graph viz | Major UX upgrade |
-| **Cross-Platform** | None | Identity resolution, content fingerprinting | New feature |
-| **Network Analysis** | None | Graph construction, centrality, CIB scoring | New feature |
+### Current System Prompt (`prompt_templates.py`)
+- Basic inline f-string prompt requesting JSON with `individual_analyses[]` and `final_briefing`
+- No confidence framework, no narrative detection, no structured output schema
 
 ---
 
-## Integration Strategy
+## Gap Analysis (Actual vs Research)
 
-### Approach: Incremental Integration (NOT rewrite)
-
-We will **extend the existing production app** rather than replacing it:
-1. Keep the existing article analysis pipeline working
-2. Add a new **account analysis** pipeline alongside it
-3. Migrate to structured JSON output format
-4. Add quality scoring as a post-processing step
-5. Expand the database schema
-6. Upgrade the frontend incrementally
-
-### Why Not Rewrite?
-- Production is live and deployed — minimize disruption
-- Article analysis is a valid use case to keep
-- Database already has data — migration, not replacement
-- Users are using it — backward compatibility matters
+| Component | Production (Actual) | Research (Sprint 1-3) | Delta |
+|-----------|--------------------|-----------------------|-------|
+| **System Prompt** | 40-line inline f-string | 200+ line v1.3 with confidence framework, narratives, CIB | Replace `prompt_templates.py` |
+| **Output Format** | `{individual_analyses[], final_briefing}` | Schema v1.2 with 7 sections, network graph, cross-platform | New response parser |
+| **Quality Control** | None | 7-dimension scorer (70 pts) | Add `quality_scorer.py` to pipeline |
+| **Narrative Detection** | None (themes in prompt only) | 18 known narratives with keyword matching | Add post-processing step |
+| **DB Tables** | 3 (outlets, articles, reports) | Need 5 more (briefings, narrative_matches, quality_scores, platform_accounts, xp_links) | Alembic migration |
+| **Platform Support** | SerpAPI news only | Twitter API v2 + Telegram MTProto adapters | Add adapters (graceful if no API keys) |
+| **Frontend Report View** | 4 markdown sections via regex parse | 7 structured JSON sections with confidence badges | Rewrite `ReportViewDialog` |
+| **Quality Badges** | `FIXME` placeholder in `ReportViewDialog.tsx:234` | Quality scorer with rating bands | Integrate scorer result |
 
 ---
 
-## Phase Breakdown
+## Phase 4A: Backend Integration (Week 1)
 
-### Phase 4A: Backend Integration (Week 1)
-**Priority**: P0 — Core pipeline upgrade
+### Task 4A.1: Add Research Modules to `src/cddbs/`
 
-#### Task 4A.1: Database Schema Migration
-**Effort**: 4 hours
-
-Add new tables to Neon PostgreSQL while keeping existing tables:
-
-```sql
--- New tables (add to existing schema)
-
-CREATE TABLE briefings (
-    id SERIAL PRIMARY KEY,
-    briefing_id VARCHAR(100) UNIQUE NOT NULL,
-    subject_handle VARCHAR(255) NOT NULL,
-    platform VARCHAR(50) NOT NULL,
-    generated_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    briefing_json JSONB NOT NULL,          -- Full structured briefing
-    executive_summary TEXT,                 -- Extracted for quick display
-    overall_confidence VARCHAR(20),         -- high/moderate/low
-    quality_score INTEGER,                  -- 0-70 from quality scorer
-    quality_rating VARCHAR(20),             -- Excellent/Good/Acceptable/Poor
-    model_version VARCHAR(50),
-    prompt_version VARCHAR(20),
-    created_at TIMESTAMP DEFAULT NOW()
-);
-
-CREATE TABLE narrative_matches (
-    id SERIAL PRIMARY KEY,
-    briefing_id INTEGER REFERENCES briefings(id),
-    narrative_id VARCHAR(50) NOT NULL,      -- e.g., 'anti_nato_001'
-    narrative_name VARCHAR(255),
-    category VARCHAR(100),
-    matched_keywords TEXT[],
-    frequency VARCHAR(20),                  -- dominant/frequent/occasional
-    created_at TIMESTAMP DEFAULT NOW()
-);
-
-CREATE TABLE platform_accounts (
-    id SERIAL PRIMARY KEY,
-    handle VARCHAR(255) NOT NULL,
-    platform VARCHAR(50) NOT NULL,
-    display_name VARCHAR(255),
-    followers INTEGER DEFAULT 0,
-    bio TEXT,
-    last_analyzed TIMESTAMP,
-    total_briefings INTEGER DEFAULT 0,
-    UNIQUE(handle, platform)
-);
-
-CREATE TABLE cross_platform_links (
-    id SERIAL PRIMARY KEY,
-    account_a_id INTEGER REFERENCES platform_accounts(id),
-    account_b_id INTEGER REFERENCES platform_accounts(id),
-    confidence VARCHAR(20),                 -- high/moderate/low
-    composite_score FLOAT,
-    signals JSONB,                          -- Signal breakdown
-    created_at TIMESTAMP DEFAULT NOW()
-);
-
-CREATE TABLE quality_scores (
-    id SERIAL PRIMARY KEY,
-    briefing_id INTEGER REFERENCES briefings(id),
-    total_score INTEGER NOT NULL,
-    rating VARCHAR(20) NOT NULL,
-    dimensions JSONB NOT NULL,              -- Per-dimension breakdown
-    created_at TIMESTAMP DEFAULT NOW()
-);
-
--- Add index for common queries
-CREATE INDEX idx_briefings_subject ON briefings(subject_handle, platform);
-CREATE INDEX idx_briefings_quality ON briefings(quality_score);
-CREATE INDEX idx_narrative_matches_narrative ON narrative_matches(narrative_id);
-CREATE INDEX idx_platform_accounts_handle ON platform_accounts(handle, platform);
-```
-
-#### Task 4A.2: Copy Research Modules to Production
-**Effort**: 2 hours
-
-Copy and adapt these files from `cddbs-research-draft` to `cddbs-prod`:
+Copy files into the production directory structure:
 
 ```
-cddbs-research-draft/                  →  cddbs-prod/
-├── tools/platform_adapters.py         →  backend/adapters/platform_adapters.py
-├── tools/quality_scorer.py            →  backend/scoring/quality_scorer.py
-├── schemas/briefing_v1.json           →  backend/schemas/briefing_v1.json
-├── data/known_narratives.json         →  backend/data/known_narratives.json
-├── templates/system_prompt_v1.3.md    →  backend/prompts/system_prompt_v1.3.md
-├── tests/test_platform_adapters.py    →  backend/tests/test_platform_adapters.py
-├── tests/test_quality_scorer.py       →  backend/tests/test_quality_scorer.py
-├── tests/test_schema_validation.py    →  backend/tests/test_schema_validation.py
-└── tests/fixtures/*.json              →  backend/tests/fixtures/*.json
+cddbs-research-draft/                          →  cddbs-prod/src/cddbs/
+├── tools/platform_adapters.py                 →  src/cddbs/adapters.py
+├── tools/quality_scorer.py                    →  src/cddbs/quality.py
+├── data/known_narratives.json                 →  src/cddbs/data/known_narratives.json
+├── schemas/briefing_v1.json                   →  src/cddbs/data/briefing_schema_v1.json
+├── templates/system_prompt_v1.3.md            →  src/cddbs/data/system_prompt_v1.3.md
+├── tests/fixtures/*.json                      →  tests/fixtures/*.json
+├── tests/test_quality_scorer.py               →  tests/test_quality.py
+├── tests/test_platform_adapters.py            →  tests/test_adapters.py
+└── tests/test_schema_validation.py            →  tests/test_schema.py
 ```
 
-Changes needed:
-- Update import paths for production directory structure
-- Add database connection to quality scorer (store results)
-- Add Neon connection string via environment variable
-- Ensure all 80 tests pass in production environment
+Import path changes needed:
+- No external dependencies to add (all stdlib + existing packages)
+- `quality_scorer.py` and `platform_adapters.py` are self-contained
+- `known_narratives.json` loaded via `Path(__file__).parent / "data"`
 
-#### Task 4A.3: Extend Analysis Pipeline
-**Effort**: 6 hours
+### Task 4A.2: Database Schema Migration (Alembic)
 
-Add a new **account analysis** LangGraph pipeline alongside the existing article pipeline:
+Add new SQLAlchemy models to `src/cddbs/models.py` (keep existing 3 models untouched):
 
 ```python
-# New pipeline: Account Analysis (social media briefing generation)
-#
-# Input: platform handle (e.g., @rt_com, @rt_english)
-# Output: Structured briefing JSON (schema v1.2)
+# New models to add to models.py
 
-account_analysis_graph = StateGraph(AccountAnalysisState)
+class Briefing(Base):
+    __tablename__ = "briefings"
+    id = Column(Integer, primary_key=True, index=True)
+    briefing_id = Column(String, unique=True, nullable=False, index=True)
+    report_id = Column(Integer, ForeignKey("reports.id"), nullable=True)  # Link to existing report
+    subject_handle = Column(String, nullable=False)
+    platform = Column(String, nullable=False, default="news")
+    briefing_json = Column(JSON, nullable=False)           # Full structured briefing
+    executive_summary = Column(Text)
+    overall_confidence = Column(String)                     # high/moderate/low
+    quality_score = Column(Integer)                         # 0-70
+    quality_rating = Column(String)                         # Excellent/Good/Acceptable/Poor
+    quality_dimensions = Column(JSON)                       # Per-dimension breakdown
+    model_version = Column(String, default="gemini-2.5-flash")
+    prompt_version = Column(String, default="v1.3")
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC))
 
-# Node 1: Collect — Fetch data via platform adapter
-account_analysis_graph.add_node("collect", collect_social_data)
+    report = relationship("Report", backref="briefing")
+    narrative_matches = relationship("NarrativeMatch", back_populates="briefing")
 
-# Node 2: Normalize — Run through TwitterAdapter/TelegramAdapter
-account_analysis_graph.add_node("normalize", normalize_platform_data)
+class NarrativeMatch(Base):
+    __tablename__ = "narrative_matches"
+    id = Column(Integer, primary_key=True, index=True)
+    briefing_db_id = Column(Integer, ForeignKey("briefings.id"))
+    narrative_id = Column(String, nullable=False, index=True)   # e.g. 'anti_nato_001'
+    narrative_name = Column(String)
+    category = Column(String)
+    matched_keywords = Column(JSON)                              # list of strings
+    frequency = Column(String)
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC))
 
-# Node 3: Analyze — Send to Gemini with system_prompt_v1.3
-account_analysis_graph.add_node("analyze", generate_briefing)
-
-# Node 4: Validate — Schema validation + quality scoring
-account_analysis_graph.add_node("validate", validate_and_score)
-
-# Node 5: Detect Narratives — Match against known_narratives.json
-account_analysis_graph.add_node("detect_narratives", match_narratives)
-
-# Node 6: Store — Save to Neon database
-account_analysis_graph.add_node("store", persist_briefing)
+    briefing = relationship("Briefing", back_populates="narrative_matches")
 ```
 
-#### Task 4A.4: Update System Prompt Integration
-**Effort**: 3 hours
+Since `init_db()` calls `Base.metadata.create_all()`, new tables are auto-created on startup. No manual migration needed for Neon — just deploy and the tables appear.
 
-Replace the current basic prompt with `system_prompt_v1.3.md`:
-- Load prompt from file (not hardcoded)
-- Inject known narratives context dynamically
-- Ensure Gemini output matches JSON schema v1.2
-- Add output parsing/validation step (JSON parse + schema validate)
-- Add retry logic for malformed LLM output (max 2 retries)
+### Task 4A.3: Upgrade System Prompt + Output Parser
 
-#### Task 4A.5: Add API Endpoints
-**Effort**: 4 hours
+**Replace** `src/cddbs/pipeline/prompt_templates.py`:
 
-New REST endpoints for the production API:
+```python
+# Load v1.3 prompt from file instead of inline f-string
+def get_consolidated_prompt(outlet, country, articles_data):
+    prompt_path = Path(__file__).parent.parent / "data" / "system_prompt_v1.3.md"
+    base_prompt = prompt_path.read_text()
 
+    # For article analysis, wrap the v1.3 prompt with article-specific context
+    return f"""
+{base_prompt}
+
+---
+ANALYSIS TARGET:
+Outlet: {outlet}
+Country: {country}
+
+SOURCE ARTICLES:
+{articles_data}
+
+Generate a structured JSON briefing following the schema specified above.
+Use "news" as the platform. The subject_handle should be the outlet name.
+"""
 ```
-POST /api/v2/analyze/account
-  Body: { "handle": "@rt_com", "platform": "twitter" }
-  Response: { "briefing_id": "...", "status": "processing" }
 
-GET /api/v2/briefings/{briefing_id}
-  Response: Full structured briefing JSON
+**Add output parser** to `orchestrator.py` after Gemini call:
+- Parse JSON response
+- Validate against briefing schema v1.2
+- Run quality scorer on the structured briefing
+- Match narratives against `known_narratives.json`
+- Store `Briefing` + `NarrativeMatch` records
+- Fallback: if Gemini returns old format, wrap it in new schema
 
-GET /api/v2/briefings
-  Query: ?platform=twitter&min_quality=50&limit=20
-  Response: Paginated briefing list
+### Task 4A.4: Add Quality Scoring to Pipeline
 
-GET /api/v2/briefings/{briefing_id}/quality
-  Response: Quality scorecard with dimension breakdown
+In `orchestrator.py`, after getting the briefing JSON:
 
-GET /api/v2/narratives
-  Response: All known narratives from database
+```python
+from src.cddbs.quality import score_briefing
+from src.cddbs.narratives import match_narratives  # new module
 
-GET /api/v2/narratives/{narrative_id}/matches
-  Response: All briefings that match this narrative
+# After parsing Gemini response into briefing_json:
+scorecard = score_briefing(briefing_json)
+narrative_hits = match_narratives(briefing_json, narratives_db)
 
-POST /api/v2/compare
-  Body: { "handle_a": "@rt_com", "handle_b": "@rt_english", "platform_a": "twitter", "platform_b": "telegram" }
-  Response: Cross-platform identity resolution result
+# Store enriched briefing
+briefing = Briefing(
+    briefing_id=f"CDDBS-{report.id:05d}",
+    report_id=report.id,
+    subject_handle=outlet,
+    platform="news",
+    briefing_json=briefing_json,
+    executive_summary=briefing_json.get("executive_summary", ""),
+    overall_confidence=briefing_json.get("metadata", {}).get("overall_confidence", ""),
+    quality_score=scorecard["total_score"],
+    quality_rating=scorecard["rating"],
+    quality_dimensions=scorecard["dimensions"],
+)
+session.add(briefing)
 
-# Keep existing v1 endpoints working
-GET /api/v1/analyze  (existing article pipeline — unchanged)
+for hit in narrative_hits:
+    session.add(NarrativeMatch(
+        briefing_db_id=briefing.id,
+        narrative_id=hit["narrative_id"],
+        narrative_name=hit["narrative_name"],
+        category=hit["category"],
+        matched_keywords=hit["matched_keywords"],
+    ))
+```
+
+### Task 4A.5: Add New API Endpoints
+
+Add to `src/cddbs/api/main.py`:
+
+```python
+# --- New v2 endpoints (alongside existing) ---
+
+@app.get("/briefings/{briefing_id}")
+def get_briefing(briefing_id: str, db: Session = Depends(get_db)):
+    """Get a structured briefing by its CDDBS ID."""
+    ...
+
+@app.get("/analysis-runs/{report_id}/briefing")
+def get_report_briefing(report_id: int, db: Session = Depends(get_db)):
+    """Get the structured briefing for an analysis run (if available)."""
+    ...
+
+@app.get("/analysis-runs/{report_id}/quality")
+def get_report_quality(report_id: int, db: Session = Depends(get_db)):
+    """Get the quality scorecard for an analysis run."""
+    ...
+
+@app.get("/narratives")
+def list_narratives():
+    """List all known narratives from the database."""
+    ...
+
+@app.get("/narratives/{narrative_id}/matches")
+def get_narrative_matches(narrative_id: str, db: Session = Depends(get_db)):
+    """Get all briefings matching a specific narrative."""
+    ...
+```
+
+### Task 4A.6: Update Dockerfile
+
+Add data files to Docker build:
+
+```dockerfile
+# In Dockerfile, after COPY src:
+COPY src /app/src
+# No changes needed - data/ is inside src/cddbs/data/
 ```
 
 ---
 
-### Phase 4B: Frontend UX Upgrade (Week 2)
-**Priority**: P1 — User experience
+## Phase 4B: Frontend UX Upgrade (Week 2)
 
-#### Task 4B.1: Briefing Viewer Component
-**Effort**: 6 hours
+### Task 4B.1: Add Quality Badge to Report Viewer
 
-New React component that renders structured briefings:
-- **Executive summary** banner with confidence badge (high=green, moderate=yellow, low=red)
-- **Key findings** cards with per-finding confidence indicators
-- **Subject profile** sidebar with platform icon, follower count, bio
-- **Narrative alignment** section with matched narrative tags
-- **Quality score** badge in header (e.g., "62/70 — Excellent")
-- **Evidence references** collapsible section
-- **Limitations** section with expandable alternative interpretations
+In `ReportViewDialog.tsx`, replace the `FIXME` placeholder (line 234):
 
-#### Task 4B.2: Dashboard Redesign
-**Effort**: 4 hours
+```tsx
+// Replace hardcoded "High Confidence" / "Limited Data" with actual quality score
+<Chip
+    label={briefing?.quality_rating
+        ? `${briefing.quality_score}/70 — ${briefing.quality_rating}`
+        : data.articles.length >= 3 ? "High Confidence" : "Limited Data"
+    }
+    size="small"
+    color={
+        briefing?.quality_score >= 60 ? "success" :
+        briefing?.quality_score >= 40 ? "info" :
+        briefing?.quality_score >= 30 ? "warning" : "error"
+    }
+/>
+```
 
-Upgrade the main dashboard:
-- **Search bar**: Enter handle + select platform → trigger analysis
-- **Recent briefings** list with quality score, confidence, platform icon
-- **Narrative heatmap**: Which narratives are most active across all analyzed accounts
-- **Platform filter**: Toggle Twitter/Telegram/All
-- **Quality filter**: Slider to filter by minimum quality score
+### Task 4B.2: Upgrade Report Viewer Sections
 
-#### Task 4B.3: Quality Score Visualization
-**Effort**: 3 hours
+Replace the 4-section markdown parsing (`parseSections`) with structured JSON rendering:
 
-- Radar chart (7 dimensions) using Chart.js or Recharts
-- Score breakdown bar with color-coded dimensions
-- Compare mode: overlay two briefings' quality profiles
-- Historical trend: how an account's briefing quality changes over time
+Current sections: Source, Narrative, Analysis, Credibility
+New sections (from schema v1.2):
+1. **Executive Summary** — with confidence badge
+2. **Subject Profile** — handle, platform, followers, bio
+3. **Key Findings** — cards with individual confidence levels
+4. **Narrative Analysis** — matched narratives with tags
+5. **Evidence Base** — collapsible evidence items with source types
+6. **Quality Score** — radar chart of 7 dimensions
+7. **Limitations** — alternative interpretations
 
-#### Task 4B.4: Network Graph Visualization
-**Effort**: 4 hours
+Fetch structured data from new endpoint:
+```tsx
+// In api.ts, add:
+export async function fetchBriefing(reportId: number) {
+    const { data } = await api.get<BriefingResponse>(`/analysis-runs/${reportId}/briefing`);
+    return data;
+}
 
-Interactive network graph viewer (using D3.js, vis.js, or Cytoscape.js):
-- Nodes colored by platform (Twitter=blue, Telegram=teal)
-- Node size by PageRank influence
-- Edge thickness by interaction weight
-- Click node → view account profile / trigger analysis
-- Community clustering with labels
-- Zoom/pan/filter controls
+export async function fetchQuality(reportId: number) {
+    const { data } = await api.get<QualityResponse>(`/analysis-runs/${reportId}/quality`);
+    return data;
+}
+```
 
-#### Task 4B.5: Cross-Platform Identity Panel
-**Effort**: 3 hours
+### Task 4B.3: Add Narrative Tags to RunsTable
 
-When viewing a briefing with cross-platform identities:
-- Side-by-side profile comparison panel
-- Signal strength indicators (8 signals with scores)
-- Content overlap percentage
-- Temporal synchronization chart
-- "Linked accounts" section in briefing viewer
+In `RunsTable.tsx`, add a column showing matched narratives as color-coded chips:
+
+```tsx
+<Chip label="Anti-NATO" size="small" color="error" />
+<Chip label="Ukraine" size="small" color="warning" />
+```
+
+### Task 4B.4: Quality Radar Chart Component
+
+New component `QualityRadar.tsx` using recharts (already in MUI ecosystem):
+
+Add to `package.json`: `"recharts": "^2.12.0"`
+
+7-axis radar chart showing:
+- Structural Completeness
+- Attribution Quality
+- Confidence Signaling
+- Evidence Presentation
+- Analytical Rigor
+- Actionability
+- Readability
+
+### Task 4B.5: Dashboard Metric Cards Update
+
+Update the 4 metric cards in `App.tsx` to include:
+- **Total Analyses** (keep)
+- **Avg Quality Score** (new — replace "Running")
+- **Active Narratives** (new — replace "Completed")
+- **Success Rate** (keep)
 
 ---
 
-## Production Deployment Plan
+## Deployment Plan
 
-### Environment Configuration (Render)
-
+### Step 1: Create branch
 ```bash
-# Existing env vars (keep)
-GOOGLE_API_KEY=...
-SERPER_API=...
-
-# New env vars (add)
-DATABASE_URL=postgresql://...@ep-xxx.us-east-2.aws.neon.tech/cddbs  # Neon connection string
-TWITTER_BEARER_TOKEN=...          # Twitter API v2 (when ready)
-TELEGRAM_API_ID=...               # Telegram MTProto (when ready)
-TELEGRAM_API_HASH=...             # Telegram MTProto (when ready)
-CDDBS_VERSION=1.3.0
-SYSTEM_PROMPT_VERSION=v1.3
+cd cddbs-prod
+git checkout -b feature/sprint-4-integration
 ```
 
-### Deployment Steps
+### Step 2: Copy research files + make changes
 
-1. **Branch**: Create `feature/sprint-4-integration` in `cddbs-prod`
-2. **Database**: Run migration SQL against Neon (new tables only — no breaking changes)
-3. **Backend**: Deploy updated backend to Render
-4. **Frontend**: Deploy updated frontend to Render
-5. **Smoke Test**: Analyze @rt_com → verify structured briefing + quality score
-6. **Rollback Plan**: Old v1 endpoints remain untouched; v2 endpoints are additive
+### Step 3: Test locally
+```bash
+docker-compose up --build
+# Run existing tests
+pytest tests/
+# Run new research tests
+pytest tests/test_quality.py tests/test_adapters.py tests/test_schema.py
+```
 
-### Risk Mitigation
+### Step 4: Push to branch → create PR
+```bash
+git push origin feature/sprint-4-integration
+# Create PR → review → merge to main
+# Render auto-deploys on merge to main
+```
 
-| Risk | Mitigation |
-|------|-----------|
-| Neon DB migration breaks existing data | New tables only; no ALTER on existing tables |
-| Gemini output doesn't match schema | JSON parsing with retry + fallback to unstructured |
-| Render cold start delays | Add health check endpoint; consider paid tier |
-| Twitter/Telegram API not yet configured | Graceful degradation: show "API not configured" in UI |
-| Quality scorer disagrees with human judgment | Show scores as "beta" with feedback button |
+### Step 5: Verify deployment
+- `GET /health` returns OK
+- `POST /analysis-runs` with RT → check response includes `quality_score`
+- `GET /analysis-runs/{id}/briefing` returns structured JSON
+- Frontend shows quality badge instead of `FIXME`
+
+### Rollback
+- All changes are additive (new tables, new endpoints, new files)
+- Existing endpoints (`/analysis-runs`) remain backward compatible
+- If merge breaks, revert the PR on GitHub → Render auto-reverts
 
 ---
 
-## Implementation Priority Order
+## File-Level Change Summary
 
+### New Files in `cddbs-prod`
 ```
-Week 1 (Backend):
-  Day 1-2: 4A.1 (DB migration) + 4A.2 (copy modules)
-  Day 3-4: 4A.3 (extend pipeline) + 4A.4 (system prompt)
-  Day 5:   4A.5 (API endpoints) + integration testing
+src/cddbs/adapters.py              (from tools/platform_adapters.py)
+src/cddbs/quality.py               (from tools/quality_scorer.py)
+src/cddbs/narratives.py            (new — narrative matching module)
+src/cddbs/data/known_narratives.json
+src/cddbs/data/briefing_schema_v1.json
+src/cddbs/data/system_prompt_v1.3.md
+tests/fixtures/                     (6 fixture files)
+tests/test_quality.py
+tests/test_adapters.py
+tests/test_schema.py
+frontend/src/components/QualityRadar.tsx
+frontend/src/components/NarrativeTags.tsx
+frontend/src/components/BriefingView.tsx
+```
 
-Week 2 (Frontend):
-  Day 1-2: 4B.1 (briefing viewer) + 4B.2 (dashboard)
-  Day 3:   4B.3 (quality visualization)
-  Day 4:   4B.4 (network graph) + 4B.5 (cross-platform panel)
-  Day 5:   End-to-end testing + deployment
+### Modified Files in `cddbs-prod`
+```
+src/cddbs/models.py                (add Briefing + NarrativeMatch models)
+src/cddbs/pipeline/prompt_templates.py  (load v1.3 prompt from file)
+src/cddbs/pipeline/orchestrator.py      (add quality scoring + narrative matching)
+src/cddbs/api/main.py                   (add new endpoints)
+src/cddbs/utils/genai_client.py         (update system prompt source)
+frontend/package.json                    (add recharts)
+frontend/src/api.ts                      (add briefing/quality fetch functions)
+frontend/src/components/ReportViewDialog.tsx  (structured view + quality badge)
+frontend/src/components/RunsTable.tsx         (narrative tags column)
+frontend/src/App.tsx                          (updated metric cards)
+requirements.txt                              (add jsonschema for validation)
+Dockerfile                                    (no changes needed - data inside src/)
+```
+
+### Unchanged Files (backward compatible)
+```
+render.yaml
+docker-compose.yml
+frontend/Dockerfile
+frontend/nginx.conf
+All existing test files
 ```
 
 ---
 
 ## Success Criteria
 
-- [ ] All 80 research tests pass in production environment
-- [ ] New account analysis endpoint generates valid schema v1.2 briefings
-- [ ] Quality scorer runs on every briefing and stores results
-- [ ] Narrative matching detects at least 1 narrative for state media accounts
-- [ ] Frontend displays structured briefings with quality badges
-- [ ] Existing article analysis pipeline still works (backward compatible)
-- [ ] Database migration is non-destructive (existing data preserved)
-- [ ] Deployment to Render succeeds without downtime
-
----
-
-## Open Questions for User
-
-1. **Production repo access**: `cddbs-prod` is on Codeberg (confirmed from execution plan). Can you either:
-   - Clone it into this environment so we can work on it directly?
-   - Or give the Codeberg URL so we can access it?
-   - Or create a GitHub mirror we can push to?
-
-2. **Database status**: The execution plan says "migrating to Supabase" but you mentioned Neon. Which is the current provider? Can you provide the DATABASE_URL connection string?
-
-3. **Twitter API access**: Do you have a Twitter API v2 Bearer Token? (Needed for live data collection)
-
-4. **Telegram API access**: Do you have Telegram API credentials (api_id + api_hash)? (Needed for Telegram data)
-
-5. **Frontend setup**: Is the frontend in the same repo as the backend, or separate? What framework (vanilla HTML? React? Vue?)?
-
-6. **Render service config**: What are the exact Render service names and any render.yaml config?
-
-7. **Priority**: Should we focus on backend-only first (API + DB), or do frontend changes simultaneously?
-
-8. **Framework**: Is the backend Flask or FastAPI? (The execution plan says "Flask/FastAPI" — which one is it?)
+- [ ] `docker-compose up --build` succeeds
+- [ ] All existing tests pass (`pytest tests/`)
+- [ ] All new tests pass (`pytest tests/test_quality.py tests/test_adapters.py tests/test_schema.py`)
+- [ ] `POST /analysis-runs` returns reports with `quality_score` field
+- [ ] `GET /analysis-runs/{id}/briefing` returns structured JSON
+- [ ] Frontend `ReportViewDialog` shows quality badge (not FIXME)
+- [ ] New tables (`briefings`, `narrative_matches`) created in Neon on deploy
+- [ ] Existing data in `outlets`, `articles`, `reports` tables untouched
+- [ ] Render deployment succeeds without manual intervention
