@@ -2,7 +2,7 @@
 
 Research and development workspace for the **Counter-Disinformation Database System (CDDBS)**.
 
-This repository contains research notebooks, briefing templates, JSON schemas, and documentation supporting the development of CDDBS — a system for analyzing social media accounts for potential disinformation activity using LLM-based intelligence briefings.
+This repository contains research notebooks, briefing templates, JSON schemas, and documentation supporting the development of CDDBS — a system for analyzing media outlets and social media accounts for potential disinformation activity using LLM-based intelligence briefings.
 
 ## Repository Structure
 
@@ -46,23 +46,42 @@ cddbs-research-draft/
 ├── retrospectives/                 # Sprint retrospectives
 │   ├── sprint_1.md
 │   ├── sprint_2.md
-│   └── sprint_3.md
+│   ├── sprint_3.md
+│   └── sprint_4.md
 ├── docs/                           # Documentation
 │   ├── cddbs_execution_plan.md
 │   ├── sprint_1_quickstart.md
 │   ├── sprint_2_backlog.md
 │   ├── sprint_3_backlog.md
-│   └── sprint_3_context.md
+│   ├── sprint_3_context.md
+│   ├── sprint_4_plan.md
+│   ├── sprint_4_integration_log.md
+│   ├── sprint_5_backlog.md
+│   └── sprint_5_context.md
 └── README.md
 ```
 
 ## Current Sprint
 
-**Sprint 3** — Multi-Platform Support (Mar 3-16, 2026)
+**Sprint 5** — Operational Maturity & Data Ingestion (Mar 3-16, 2026)
 
-Goal: Extend CDDBS to support Telegram analysis, cross-platform identity correlation, enhanced network analysis, and robust API handling. See [docs/sprint_3_backlog.md](docs/sprint_3_backlog.md) for details.
+Goal: Wire live data ingestion via Twitter API v2, support batch analysis, add export capabilities (PDF/JSON/CSV), implement end-to-end integration tests, and add monitoring infrastructure. See [docs/sprint_5_backlog.md](docs/sprint_5_backlog.md) for details.
 
 ## Key Deliverables
+
+### Sprint 4 — Production Integration (v1.4.0)
+
+| File | Description |
+|------|-------------|
+| `docs/sprint_4_plan.md` | Revised integration plan based on actual cddbs-prod architecture |
+| `docs/sprint_4_integration_log.md` | Tracking log of all files created/modified in cddbs-prod |
+| `retrospectives/sprint_4.md` | Sprint 4 retrospective (plan vs actual, metrics, lessons) |
+
+**Production changes** (in `cddbs-prod`, not this repo):
+- Quality scorer, platform adapters, narrative matcher integrated into pipeline
+- 3 new API endpoints + 3 new database tables + 11 new frontend components
+- Feedback system, keyboard shortcuts, cold start handling
+- 56 new tests (quality: 23, adapters: 22, narratives: 11)
 
 ### Sprint 3 — Multi-Platform Support (v1.3.0)
 
@@ -122,9 +141,15 @@ Sprint 3 extended analysis to Telegram:
 - Cross-platform correlation strengthens assessments (evidence from multiple platforms)
 - Telegram serves as early warning — new narratives often appear there first
 
+Sprint 4 integrated research into production:
+- Quality scoring + narrative matching run automatically after every analysis
+- Frontend surfaces quality scores (radar chart) and matched narratives (color-coded tags)
+- Platform adapters exist in production but not yet wired into pipeline (Sprint 5)
+- Feedback system enables structured beta tester input
+
 ## Related Repositories
 
-- **cddbs-prod** (Codeberg) — Production application code
+- **cddbs-prod** (GitHub) — Production application code
 - **cddbs-research** (GitHub, public) — Published research outputs
 
 > This is a private working repository. Do not push to `cddbs-research` (public).
