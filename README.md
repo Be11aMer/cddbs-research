@@ -1,55 +1,242 @@
-# cddbs-research-draft
+# Cybersecurity Disinformation Detection Briefing System (CDDBS)
 
-Research and development workspace for the **Counter-Disinformation Database System (CDDBS)**.
+> An automated intelligence briefing system that monitors, analyzes, and summarizes media narratives to detect and explain disinformation patterns — combining LLM-driven analysis with professional intelligence community standards.
 
-This repository contains research notebooks, briefing templates, JSON schemas, and documentation supporting the development of CDDBS — a system for analyzing media outlets and social media accounts for potential disinformation activity using LLM-based intelligence briefings.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/)
+[![Gemini](https://img.shields.io/badge/LLM-Gemini%202.5%20Flash-4285F4?logo=google)](https://ai.google.dev/)
+[![Sprint](https://img.shields.io/badge/Sprint-5%20%E2%80%94%20In%20Progress-orange)](docs/sprint_5_backlog.md)
+
+`#disinformation` `#ai-safety` `#nlp` `#media-analysis` `#intelligence-briefing` `#osint` `#information-operations` `#llm` `#democratic-resilience` `#fact-checking` `#narrative-detection` `#telegram` `#twitter` `#media-monitoring`
+
+---
+
+## What is CDDBS?
+
+CDDBS is a research and development project building a system to analyze media outlets and social media accounts for potential disinformation activity. It uses LLM-based analysis (Google Gemini) to produce structured **intelligence briefings** that assess:
+
+- **Source credibility** — behavioral indicators and outlet history
+- **Narrative alignment** — matching against 18 known disinformation narratives across 8 categories
+- **Cross-platform amplification** — tracking how narratives propagate across news, Twitter/X, and Telegram
+- **Quality scoring** — 7-dimension, 70-point rubric for briefing reliability
+
+The system implements a multi-stage pipeline: **Fetch → Analyze → Digest → Translate → Summarize**, adhering to intelligence community briefing standards studied from EUvsDisinfo, DFRLab, Bellingcat, NATO StratCom COE, and others.
+
+---
+
+## Live Application
+
+The current production deployment of CDDBS is hosted on Render.
+
+> **Wake-up sequence** (Render free tier spins down after inactivity):
+> 1. Wake backend: visit [cddbs-api.onrender.com](https://cddbs-api.onrender.com/) and wait 30–60 seconds for the status message
+> 2. Open frontend: [cddbs-frontend.onrender.com](https://cddbs-frontend.onrender.com/)
+
+**Architecture & Security Model:**
+- **BYOK (Bring Your Own Key)**: API keys (SerpAPI + Gemini) are stored only in the user's browser — never on the server
+- **Centralized research DB**: PostgreSQL for collaborative verification of disinformation patterns found during the research phase
+
+---
+
+## Try It in Google Colab
+
+No local setup required. Open any notebook directly in Colab:
+
+| Notebook | Description | Open |
+|----------|-------------|------|
+| `CDDBS_Main.ipynb` | Full refactored pipeline (v1.0) | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Be11aMer/cddbs-research-draft/blob/main/notebooks/CDDBS_Main.ipynb) |
+| `CDDBS_v0.1.0_POC.ipynb` | Original proof of concept | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Be11aMer/cddbs-research-draft/blob/main/notebooks/CDDBS_v0.1.0_POC.ipynb) |
+| `CDDBS_v0.2.0_enhanced.ipynb` | Enhanced pipeline (v0.2) | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Be11aMer/cddbs-research-draft/blob/main/notebooks/CDDBS_v0.2.0_enhanced.ipynb) |
+| `multi_source_v0.3.0_dev.ipynb` | Multi-source experiment (dev) | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Be11aMer/cddbs-research-draft/blob/main/notebooks/experiments/multi_source_v0.3.0_dev.ipynb) |
+| `briefing_format_analysis.ipynb` | Briefing format research | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Be11aMer/cddbs-research-draft/blob/main/research/briefing_format_analysis.ipynb) |
+| `prompt_optimization.ipynb` | Prompt engineering research | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Be11aMer/cddbs-research-draft/blob/main/research/prompt_optimization.ipynb) |
+| `telegram_platform_analysis.ipynb` | Telegram disinformation research | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Be11aMer/cddbs-research-draft/blob/main/research/telegram_platform_analysis.ipynb) |
+
+**Colab Setup (2 steps):**
+1. Click the key icon in the left sidebar → add secrets: `GOOGLE_API_KEY` and `SERPER_API`
+2. Run all cells → execute: `run_cddbs_analysis('RT', 'rt.com', 'Russia')`
+
+See [docs/API_SETUP.md](docs/API_SETUP.md) for full API key setup instructions.
+
+---
+
+## Project Status & Roadmap
+
+**Current Phase**: Sprint 5 — Operational Maturity & Data Ingestion (Mar 3–16, 2026)
+
+### Completed
+
+**Phase 1 — MVP** (cddbs-research, original prototype)
+- [x] Core analysis pipeline (Fetch → Analyze → Digest → Translate → Summarize)
+- [x] LangGraph workflow orchestration
+- [x] SerpAPI news discovery + Gemini LLM analysis
+- [x] PostgreSQL database integration
+- [x] Web interface + production deployment on Render
+- [x] BYOK security model
+
+**Sprint 1 — Briefing Format Redesign** (v1.1.0)
+- [x] Researched 10 professional intelligence briefing formats (EUvsDisinfo, DFRLab, Bellingcat, NATO StratCom COE, Stanford IO, Graphika, RAND, UK DCMS, GEC, Oxford II)
+- [x] CDDBS v1.1 briefing template (7 mandatory sections)
+- [x] JSON Schema (draft-07) for structured briefing output
+- [x] System prompt v1.1 with confidence framework and attribution standards
+- [x] Frontend mockup with sample RT analysis
+
+**Sprint 2 — Quality & Reliability** (v1.2.0)
+- [x] Automated quality scorer (7 dimensions, 70-point rubric)
+- [x] Known narratives reference dataset (8 categories, 18 narratives)
+- [x] Source verification framework (5 evidence types)
+- [x] 41 automated tests (schema validation + quality scoring)
+- [x] System prompt v1.2 with narrative detection + self-validation
+
+**Sprint 3 — Multi-Platform Support** (v1.3.0)
+- [x] Telegram platform analysis and behavioral indicators
+- [x] Cross-platform identity correlation framework
+- [x] Network analysis (graph model, community detection design)
+- [x] Platform adapters for Twitter + Telegram data normalization
+- [x] Schema v1.2.0 with multi-platform fields and network graph
+- [x] API rate limiting design (Twitter v2 + Telegram MTProto)
+- [x] 80 total tests (39 new)
+
+**Sprint 4 — Production Integration** (v1.4.0)
+- [x] Quality scorer wired into live analysis pipeline
+- [x] Narrative matcher running against 18 known narratives post-analysis
+- [x] 3 new API endpoints (quality, narratives, narratives DB)
+- [x] 3 new database tables (briefings, narrative_matches, feedback)
+- [x] Frontend: QualityBadge, QualityRadarChart, NarrativeTags components
+- [x] Dashboard metrics: Avg Quality + Narratives Detected
+- [x] Feedback system, keyboard shortcuts, cold start handling
+- [x] 56 new production tests
+
+### In Progress
+
+**Sprint 5 — Operational Maturity & Data Ingestion** (v1.5.0)
+- [ ] Twitter API v2 adapter wired into pipeline
+- [ ] Batch analysis support (multiple outlets in single request)
+- [ ] Export formats (PDF, JSON, CSV)
+- [ ] End-to-end integration tests with real API validation
+- [ ] Analysis monitoring and alerting infrastructure
+- [ ] Network graph visualization in frontend
+
+### Upcoming
+
+**Sprint 6 — Scale & Event Intelligence** (v1.6.0, Mar 17–30, 2026)
+- [ ] Event Intelligence Pipeline: RSS + GDELT multi-source ingestion
+- [ ] Event clustering (TF-IDF agglomerative) + burst detection (z-score)
+- [ ] Narrative risk scoring (4-signal composite)
+- [ ] Telegram Bot API integration
+
+**Sprint 7 — Intelligence Layer** (Apr 2026)
+- [ ] `/events` API endpoints with map visualization
+- [ ] EventClusterPanel, BurstTimeline, EventDetailDialog frontend components
+
+**Sprints 7–8 — Collaborative Features** (Apr 2026)
+- [ ] User authentication and analyst workspaces
+- [ ] Analyst annotations and comments on briefings
+
+**Sprints 9–12 — Advanced Features** (May–Jul 2026)
+- [ ] ML model fine-tuning for improved narrative detection
+- [ ] Automated monitoring schedules
+- [ ] API for third-party integration
+- [ ] Multi-language support
+
+---
+
+## Architecture
+
+### Current Stack (v1.4.0)
+
+| Component | Technology |
+|-----------|-----------|
+| Backend | FastAPI + uvicorn (Docker, Render) |
+| Frontend | React 18 + TypeScript + MUI 6 + Vite (Render/Nginx) |
+| Database | PostgreSQL 15 (Neon managed, 6 tables) |
+| LLM | Google Gemini 2.5 Flash via google-genai SDK |
+| Data Sources | SerpAPI Google News (Twitter API v2 planned v1.5.0) |
+| Source Code | GitHub (`cddbs-prod` + this repo) |
+
+### Analysis Pipeline
+
+```
+Input (outlet / topic / account)
+        │
+        ▼
+   [Fetch]  SerpAPI Google News discovery
+        │
+        ▼
+   [Analyze]  Gemini LLM — narrative evaluation, disinformation markers
+        │
+        ▼
+   [Digest]  Key claims + rhetorical strategy extraction
+        │
+        ▼
+   [Translate]  Multi-lingual support (cross-border narrative tracking)
+        │
+        ▼
+   [Summarize]  Structured intelligence briefing (JSON Schema v1.2)
+        │
+        ▼
+   [Score]  7-dimension quality scorer (70-point rubric)
+        │
+        ▼
+   [Match]  Narrative detection against 18 known disinformation narratives
+        │
+        ▼
+   Output: Professional briefing + quality scorecard + narrative tags
+```
+
+---
 
 ## Repository Structure
 
 ```
 cddbs-research-draft/
-├── .github/workflows/ci.yml       # CI/CD pipeline (pytest, schema, notebooks)
-├── research/                       # Research notebooks
-│   ├── briefing_format_analysis.ipynb
-│   ├── quality_testing_framework.md
-│   ├── source_verification_framework.md
-│   ├── prompt_optimization.ipynb
+├── notebooks/                          # Original MVP & POC notebooks
+│   ├── CDDBS_Main.ipynb                # Full refactored pipeline (v1.0)
+│   ├── CDDBS_v0.1.0_POC.ipynb         # Original proof of concept
+│   ├── CDDBS_v0.2.0_enhanced.ipynb    # Enhanced pipeline
+│   └── experiments/
+│       └── multi_source_v0.3.0_dev.ipynb
+├── research/                           # Research notebooks & documentation
+│   ├── briefing_format_analysis.ipynb  # 10 professional formats analyzed
+│   ├── prompt_optimization.ipynb       # Prompt engineering experiments
 │   ├── telegram_platform_analysis.ipynb
+│   ├── cross_platform_correlation.ipynb
+│   ├── network_analysis.ipynb
+│   ├── platform_adapters_demo.ipynb
+│   ├── quality_scoring_analysis.ipynb
+│   ├── quality_testing_framework.md    # 7-dimension, 70-point rubric design
+│   ├── source_verification_framework.md
 │   ├── cross_platform_correlation.md
 │   ├── network_analysis_framework.md
+│   ├── event_intelligence_pipeline.md  # Sprint 6-7 architecture design
 │   └── api_rate_limiting.md
-├── templates/                      # Briefing templates & prompts
-│   ├── intelligence_briefing.md
+├── templates/                          # Briefing templates & prompts
+│   ├── intelligence_briefing.md        # CDDBS v1.1 briefing template
 │   ├── system_prompt_v1.1.md
 │   ├── system_prompt_v1.2.md
 │   └── system_prompt_v1.3.md
-├── schemas/                        # JSON schemas
-│   └── briefing_v1.json            # v1.2.0 (multi-platform)
-├── data/                           # Reference datasets
-│   └── known_narratives.json       # 8 categories, 18 narratives
-├── tools/                          # Automated tooling
-│   ├── quality_scorer.py
-│   └── platform_adapters.py
-├── tests/                          # Test suites (80 tests)
-│   ├── fixtures/                   # Test fixture briefings
-│   │   ├── high_quality_briefing.json
-│   │   ├── medium_quality_briefing.json
-│   │   ├── low_quality_briefing.json
-│   │   ├── minimal_valid_briefing.json
-│   │   ├── telegram_channel_briefing.json
-│   │   └── cross_platform_briefing.json
+├── schemas/
+│   └── briefing_v1.json               # JSON Schema draft-07 (v1.2.0)
+├── data/
+│   ├── known_narratives.json          # 8 categories, 18 narratives
+│   ├── rss_feeds.json                 # 15 curated OSINT-grade RSS feeds
+│   └── sample_outputs/               # Sample briefing outputs from MVP
+│       ├── test_POC_0.txt
+│       ├── test_v0.2.0_0.txt
+│       └── test_v0.2.0_1.txt
+├── tools/
+│   ├── quality_scorer.py              # 7-dimension automated scorer
+│   └── platform_adapters.py          # Twitter + Telegram normalization
+├── tests/                             # 80 tests
+│   ├── fixtures/                      # 6 test briefing fixtures
 │   ├── test_schema_validation.py
 │   ├── test_quality_scorer.py
 │   └── test_platform_adapters.py
-├── mockups/                        # Frontend mockups
-│   └── briefing_mockup.html
-├── retrospectives/                 # Sprint retrospectives
-│   ├── sprint_1.md
-│   ├── sprint_2.md
-│   ├── sprint_3.md
-│   └── sprint_4.md
-├── docs/                           # Documentation
-│   ├── cddbs_execution_plan.md
+├── mockups/
+│   └── briefing_mockup.html          # Frontend mockup (RT sample analysis)
+├── docs/                              # Documentation & sprint writeups
+│   ├── API_SETUP.md                  # API key setup for Colab
+│   ├── cddbs_execution_plan.md       # Full project vision & sprint roadmap
 │   ├── sprint_1_quickstart.md
 │   ├── sprint_2_backlog.md
 │   ├── sprint_3_backlog.md
@@ -57,99 +244,83 @@ cddbs-research-draft/
 │   ├── sprint_4_plan.md
 │   ├── sprint_4_integration_log.md
 │   ├── sprint_5_backlog.md
-│   └── sprint_5_context.md
-└── README.md
+│   ├── sprint_5_context.md
+│   ├── sprint_5_integration_log.md
+│   ├── sprint_6_backlog.md
+│   └── diagrams/
+│       └── POC_workflow.png
+├── retrospectives/                    # Sprint retrospectives
+│   ├── sprint_1.md
+│   ├── sprint_2.md
+│   ├── sprint_3.md
+│   └── sprint_4.md
+├── patches/
+│   └── sprint5_production_changes.patch
+├── .github/workflows/ci.yml          # CI/CD (pytest, schema, notebooks)
+├── requirements.txt                   # Python dependencies
+└── LICENSE                           # MIT
 ```
 
-## Current Sprint
+---
 
-**Sprint 5** — Operational Maturity & Data Ingestion (Mar 3-16, 2026)
+## Research & Writeups
 
-Goal: Wire live data ingestion via Twitter API v2, support batch analysis, add export capabilities (PDF/JSON/CSV), implement end-to-end integration tests, and add monitoring infrastructure. See [docs/sprint_5_backlog.md](docs/sprint_5_backlog.md) for details.
+Sprint documentation and research writeups live in [`docs/`](docs/) and [`research/`](research/):
 
-## Key Deliverables
+- [Project Vision & Sprint Roadmap](docs/cddbs_execution_plan.md)
+- [Event Intelligence Pipeline Architecture](research/event_intelligence_pipeline.md)
+- [Briefing Format Analysis](research/briefing_format_analysis.ipynb) — 10 professional formats benchmarked
+- [Source Verification Framework](research/source_verification_framework.md)
+- [Cross-Platform Correlation](research/cross_platform_correlation.md)
+- [Network Analysis Framework](research/network_analysis_framework.md)
+- [API Rate Limiting Design](research/api_rate_limiting.md)
+- [Sprint Retrospectives](retrospectives/)
 
-### Sprint 4 — Production Integration (v1.4.0)
+### Key Research Findings
 
-| File | Description |
-|------|-------------|
-| `docs/sprint_4_plan.md` | Revised integration plan based on actual cddbs-prod architecture |
-| `docs/sprint_4_integration_log.md` | Tracking log of all files created/modified in cddbs-prod |
-| `retrospectives/sprint_4.md` | Sprint 4 retrospective (plan vs actual, metrics, lessons) |
-
-**Production changes** (in `cddbs-prod`, not this repo):
-- Quality scorer, platform adapters, narrative matcher integrated into pipeline
-- 3 new API endpoints + 3 new database tables + 11 new frontend components
-- Feedback system, keyboard shortcuts, cold start handling
-- 56 new tests (quality: 23, adapters: 22, narratives: 11)
-
-### Sprint 3 — Multi-Platform Support (v1.3.0)
-
-| File | Task | Description |
-|------|------|-------------|
-| `research/telegram_platform_analysis.ipynb` | 4.1 | Telegram disinformation research (platform comparison, indicators) |
-| `research/cross_platform_correlation.md` | 4.2 | Cross-platform identity resolution framework |
-| `research/network_analysis_framework.md` | 4.3 | Graph-based network analysis design |
-| `schemas/briefing_v1.json` | 4.4 | Schema v1.2.0 (cross-platform identities, network graph, Telegram fields) |
-| `tools/platform_adapters.py` | 4.5 | Twitter + Telegram data normalization adapters |
-| `tests/fixtures/telegram_channel_briefing.json` | 4.6 | Telegram channel test fixture (RT English) |
-| `tests/fixtures/cross_platform_briefing.json` | 4.6 | Cross-platform entity test fixture |
-| `tools/quality_scorer.py` | 4.7 | Updated scorer (new evidence types, cross-platform bonus) |
-| `data/known_narratives.json` | 4.8 | Updated: 8 categories, 18 narratives, Telegram patterns |
-| `templates/system_prompt_v1.3.md` | 4.9 | Multi-platform prompt (Twitter + Telegram + cross-platform) |
-| `research/api_rate_limiting.md` | 4.10 | API rate limiting design (Twitter v2 + Telegram MTProto) |
-| `tests/test_platform_adapters.py` | 4.11 | Platform adapter tests (22 tests) |
-| `retrospectives/sprint_3.md` | 4.13 | Sprint 3 retrospective |
-
-### Sprint 2 — Quality & Reliability (v1.2.0)
-
-| File | Task | Description |
-|------|------|-------------|
-| `tools/quality_scorer.py` | 3.1 | Automated 7-dimension quality scorer (70-point rubric) |
-| `data/known_narratives.json` | 3.2 | Known narratives reference dataset |
-| `research/source_verification_framework.md` | 3.3 | Source verification procedures for all 5 evidence types |
-| `templates/system_prompt_v1.2.md` | 3.4 | System prompt v1.2 with narrative detection + self-validation |
-| `research/prompt_optimization.ipynb` | 3.5 | Prompt optimization research |
-| `tests/` | 3.6 | Schema validation + quality scorer tests |
-| `retrospectives/sprint_2.md` | 3.9 | Sprint 2 retrospective |
-
-### Sprint 1 — Briefing Format Redesign (v1.1.0)
-
-| File | Task | Description |
-|------|------|-------------|
-| `research/briefing_format_analysis.ipynb` | 2.1 | Analysis of 10 professional briefing formats |
-| `templates/intelligence_briefing.md` | 2.2 | CDDBS v1.1 briefing template (7 mandatory sections) |
-| `schemas/briefing_v1.json` | 2.2 | JSON Schema (draft-07) for structured briefing output |
-| `templates/system_prompt_v1.1.md` | 2.4 | System prompt v1.1 |
-| `research/quality_testing_framework.md` | 2.5 | 7-dimension, 70-point quality rubric |
-| `mockups/briefing_mockup.html` | 2.6 | Frontend mockup with sample RT analysis |
-
-## Research Summary
-
-The briefing format analysis (Task 2.1) studied 10 organizations:
-EUvsDisinfo, DFRLab, Bellingcat, NATO StratCom COE, Stanford IO, Graphika, RAND, UK DCMS, GEC, Oxford II.
-
-Key findings:
-- Only 3/10 organizations use explicit confidence signaling (major gap)
-- Per-finding confidence levels are a CDDBS innovation (none of the 10 do this)
+**Briefing Format Study (Sprint 1):**
+- Only 3/10 organizations use explicit confidence signaling — a major gap
+- Per-finding confidence levels are a CDDBS innovation (none of the 10 benchmarked do this)
 - CDDBS occupies a unique niche: database consistency + policy brief depth
 - Mandatory limitations section builds trust (learned from Bellingcat, SIO)
 
-Sprint 3 extended analysis to Telegram:
+**Telegram Analysis (Sprint 3):**
 - Forwarding chains are more traceable than Twitter retweets (source attribution preserved)
 - Channel admin anonymity is the key attribution challenge
-- Cross-platform correlation strengthens assessments (evidence from multiple platforms)
-- Telegram serves as early warning — new narratives often appear there first
+- Cross-platform correlation significantly strengthens assessments
+- Telegram serves as early warning — new narratives often appear there first before going mainstream
 
-Sprint 4 integrated research into production:
-- Quality scoring + narrative matching run automatically after every analysis
-- Frontend surfaces quality scores (radar chart) and matched narratives (color-coded tags)
-- Platform adapters exist in production but not yet wired into pipeline (Sprint 5)
-- Feedback system enables structured beta tester input
+---
+
+## Key Principles
+
+1. **Evidence over speed** — Every claim must be traceable to evidence
+2. **Confidence transparency** — Always communicate uncertainty honestly
+3. **Reproducibility** — Analyses should be reproducible with the same inputs
+4. **Professional standards** — Output should meet intelligence community standards
+5. **Cost discipline** — Stay within free/low-cost tier limits
+
+---
 
 ## Related Repositories
 
-- **cddbs-prod** (GitHub) — Production application code
-- **cddbs-research** (GitHub, public) — Published research outputs
+- **cddbs-prod** (private) — Production application code (FastAPI backend + React frontend)
+- **cddbs-research** (public, archived) — Original MVP notebooks and POC documentation
 
-> This is a private working repository. Do not push to `cddbs-research` (public).
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE).
+
+---
+
+## Collaboration
+
+CDDBS is an open research prototype for academic and policy collaboration in disinformation analysis, media monitoring, and intelligence automation.
+
+Researchers, journalists, or institutions interested in collaboration, methodological review, or exploring applications in democratic resilience are welcome to reach out:
+
+**Email**: angaben@pm.me
+
+*Suggested GitHub topics: `disinformation`, `ai-safety`, `nlp`, `media-analysis`, `intelligence-briefing`, `osint`, `information-operations`, `llm`, `democratic-resilience`, `fact-checking`, `narrative-detection`, `telegram`, `media-monitoring`, `python`*
