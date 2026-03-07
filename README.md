@@ -324,8 +324,7 @@ Sprint documentation and research writeups live in [`docs/`](docs/) and [`resear
 
 ## Related Repositories
 
-- **cddbs-prod** (private) — Production application code (FastAPI backend + React frontend)
-- **cddbs-research** (public, archived) — Original MVP notebooks and POC documentation
+- **cddbs-prod** (private) — Production application code for live application. (FastAPI backend + React frontend + Postgres db)
 
 ---
 
