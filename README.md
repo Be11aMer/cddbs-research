@@ -141,6 +141,26 @@ See [docs/API_SETUP.md](docs/API_SETUP.md) for full API key setup instructions.
 
 ---
 
+### CDDBS-Edge — Parallel Experimental Track
+
+[![Status](https://img.shields.io/badge/status-concept%2Fexperiment-lightgrey)](research/cddbs_edge_concept.md)
+
+> *"What happens when the cloud goes down, the API gets blocked, or you're a journalist in a country that restricts internet access?"*
+
+A portable, offline-capable version of CDDBS built on a **Raspberry Pi 5** running a **local quantized LLM** (Phi-3 Mini 3.8B via Ollama), replacing all cloud API calls. Output delivered via MQTT to an e-ink display or external screen.
+
+**Designed for**: Journalists in restricted-internet environments, field reporting, infrastructure resilience scenarios.
+
+**Experiment roadmap**:
+- [ ] Phase 0 — Software-only: Swap Gemini → Ollama on laptop, benchmark briefing quality
+- [ ] Phase 1 — Pi deployment: Pipeline on Pi 5 8GB, benchmark speed & RAM
+- [ ] Phase 2 — Display: Wire MQTT + Mosquitto, test e-ink HAT vs MQTT subscriber
+- [ ] Phase 3 — Offline data ingestion: USB-based article import or minimal RSS fetch design
+
+See [research/cddbs_edge_concept.md](research/cddbs_edge_concept.md) for full evaluation, architecture, and open questions.
+
+---
+
 ## Architecture
 
 ### Current Stack (v1.4.0)

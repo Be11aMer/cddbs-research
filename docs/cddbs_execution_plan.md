@@ -90,6 +90,27 @@ CDDBS is a system for analyzing media outlets and social media accounts for pote
 
 ---
 
+### CDDBS-Edge: Portable Offline Briefing System (Parallel Track)
+
+**Status**: Concept — Experiment Phase 0 in planning
+**Scope**: Separate hardware prototype track, runs parallel to cloud sprints
+**Design doc**: [research/cddbs_edge_concept.md](../research/cddbs_edge_concept.md)
+
+> *"What happens when the cloud goes down, the API gets blocked, or you're a journalist in a country that restricts internet access?"*
+
+A portable, offline-capable version of CDDBS that runs entirely on a Raspberry Pi 5 with a local quantized LLM (Phi-3 Mini 3.8B via Ollama), replacing all external API calls. Output delivered via MQTT broker to a connected display (e-ink HAT or external screen — approach TBD by experiment).
+
+**Experiment Phases:**
+- **Phase 0** (no hardware): Swap Gemini → Ollama on laptop, benchmark briefing quality vs cloud baseline
+- **Phase 1**: Deploy pipeline on Raspberry Pi 5 (8GB), benchmark speed/RAM/thermal
+- **Phase 2**: Wire MQTT output, prototype display options (e-ink HAT vs MQTT subscriber)
+- **Phase 3**: Design offline data ingestion (USB-based article import or minimal RSS fetch)
+
+**Why it matters for AI trust & governance:**
+Demonstrates resilience, digital sovereignty, access equity, and privacy-preserving AI deployment — concrete artifacts for governance discussions that most researchers only address theoretically.
+
+---
+
 ## Architecture
 
 ### Current Stack (as of v1.4.0)
