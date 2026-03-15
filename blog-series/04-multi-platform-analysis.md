@@ -358,7 +358,7 @@ The cross-platform normalization test is particularly important: it verifies tha
 
 ## Next Up
 
-This post covered the data ingestion layer — how CDDBS gets data from different platforms into a common format for analysis. The final post in this series covers operational maturity: batch analysis, export formats, metrics, and the engineering work that turns a working prototype into a production system.
+This post covered the data ingestion layer — how CDDBS gets data from different platforms into a common format for analysis. The next post covers operational maturity: batch analysis, export formats, metrics, and the engineering work that turns a working prototype into a production system.
 
 ---
 
