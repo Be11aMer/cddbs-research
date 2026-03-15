@@ -12,7 +12,7 @@ CDDBS — the Cyber Disinformation Detection Briefing System — is an open-sour
 
 The result is a professional intelligence briefing — the kind an analyst at a think tank or government agency would write — produced in under a minute.
 
-This is the first post in a series where I'll walk through the technical architecture, the pipeline internals, the quality assurance system, and the operational infrastructure behind it. This isn't a weekend project write-up. CDDBS has been through five development sprints, 169 tests, and a production deployment on Render. The goal of this series is to show how the pieces fit together — and why we made the decisions we did.
+TThis is the first post in a series where I'll walk through the technical architecture, the pipeline internals, the quality assurance system, and the operational infrastructure behind it. This isn't a weekend project write-up. CDDBS has been through six development sprints, 142 tests, and a production deployment on Render. The goal of this series is to show how the pieces fit together — and why we made the decisions we did.
 
 ## The Problem We're Solving
 
