@@ -1,0 +1,2654 @@
+diff --git a/docs/developer-guide.md b/docs/developer-guide.md
+new file mode 100644
+index 0000000..a1a6967
+--- /dev/null
++++ b/docs/developer-guide.md
+@@ -0,0 +1,812 @@
++# CDDBS Developer Guide
++
++Comprehensive technical documentation for the Counter-Disinformation Database Briefing System.
++
++---
++
++## Table of Contents
++
++1. [Architecture Overview](#architecture-overview)
++2. [Technology Stack](#technology-stack)
++3. [Project Structure](#project-structure)
++4. [Backend](#backend)
++   - [Configuration](#configuration)
++   - [Database & Models](#database--models)
++   - [API Endpoints](#api-endpoints)
++   - [Analysis Pipeline](#analysis-pipeline)
++   - [Quality Scoring](#quality-scoring)
++   - [Narrative Matching](#narrative-matching)
++   - [Platform Adapters](#platform-adapters)
++5. [Frontend](#frontend)
++   - [Application Shell](#application-shell)
++   - [State Management](#state-management)
++   - [API Client](#api-client)
++   - [Components Reference](#components-reference)
++6. [Data Files](#data-files)
++7. [Testing](#testing)
++8. [Deployment](#deployment)
++9. [Environment Variables](#environment-variables)
++10. [Contributing](#contributing)
++
++---
++
++## Architecture Overview
++
++CDDBS follows a standard three-tier architecture:
++
++```
++┌─────────────────────────────────────────────────────────┐
++│                    React Frontend                        │
++│         (Vite + MUI 6 + Redux Toolkit + TanStack)       │
++├─────────────────────────────────────────────────────────┤
++│                         Nginx                            │
++│                  (Reverse Proxy /api →)                   │
++├─────────────────────────────────────────────────────────┤
++│                    FastAPI Backend                        │
++│             (Uvicorn + SQLAlchemy ORM)                    │
++├─────────────────────────────────────────────────────────┤
++│                External Services                         │
++│       SerpAPI (News Fetch)  ·  Google Gemini (LLM)       │
++├─────────────────────────────────────────────────────────┤
++│                  PostgreSQL (Neon)                        │
++│              (Reports, Articles, Briefings)               │
++└─────────────────────────────────────────────────────────┘
++```
++
++### Request Flow
++
++1. User submits an analysis request via the frontend (outlet, country, URL, article count).
++2. Frontend sends `POST /analysis-runs` with the user's API keys (stored in localStorage).
++3. Backend creates a placeholder `Report` row (status: queued) and returns immediately.
++4. A **background task** executes the pipeline:
++   - **Fetch**: SerpAPI retrieves news articles for the specified outlet.
++   - **Analyze**: Google Gemini generates a structured intelligence briefing (JSON).
++   - **Score**: The 7-dimension quality scorer evaluates the briefing output.
++   - **Match**: The narrative matcher checks for known disinformation patterns.
++   - **Persist**: Results are saved to PostgreSQL (Report, Articles, Briefing, NarrativeMatch).
++5. Frontend auto-polls `GET /analysis-runs` every 10 seconds while runs are active.
++6. User views the completed briefing via the full-screen report dialog.
++
++### Authentication Model
++
++CDDBS uses a **Bring Your Own Key (BYOK)** model:
++
++- Users provide their own SerpAPI and Google Gemini API keys.
++- Keys are stored in `localStorage` on the client side.
++- Keys are sent with each analysis request and passed directly to external APIs.
++- The backend does **not** store user API keys.
++
++---
++
++## Technology Stack
++
++### Backend
++
++| Component        | Technology                  | Version     |
++|------------------|-----------------------------|-------------|
++| Web Framework    | FastAPI                     | Latest      |
++| ASGI Server      | Uvicorn                     | Latest      |
++| ORM              | SQLAlchemy                  | Latest      |
++| Database         | PostgreSQL (Neon in prod)   | 15+         |
++| LLM Provider     | Google Gemini (`gemini-2.5-flash`) | v2.5  |
++| News Search      | SerpAPI (Google News engine)| -           |
++| Python           | 3.11+                       | 3.11        |
++
++### Frontend
++
++| Component        | Technology                  | Version     |
++|------------------|-----------------------------|-------------|
++| UI Framework     | React                       | 18.3        |
++| Build Tool       | Vite                        | 6.0         |
++| Language         | TypeScript                  | 5.6         |
++| Component Library| Material UI (MUI)           | 6.1         |
++| State Management | Redux Toolkit               | 2.3         |
++| Data Fetching    | TanStack React Query        | 5.59        |
++| HTTP Client      | Axios                       | 1.7         |
++| Markdown         | react-markdown              | 9.1         |
++| Routing          | react-router-dom            | 6.28        |
++
++### Infrastructure
++
++| Component        | Technology                  |
++|------------------|-----------------------------|
++| Container        | Docker (Python 3.11-slim)   |
++| Orchestration    | Docker Compose 3.8          |
++| Hosting (prod)   | Render (free tier)          |
++| Database (prod)  | Neon PostgreSQL             |
++| Reverse Proxy    | Nginx (in frontend container)|
++
++---
++
++## Project Structure
++
++```
++cddbs-prod/
++├── docs/                          # Documentation
++│   ├── developer-guide.md         # This file
++│   └── user-manual.md             # End-user manual
++├── src/cddbs/                     # Main Python package
++│   ├── __init__.py                # Package init (exports settings)
++│   ├── config.py                  # Environment configuration
++│   ├── database.py                # SQLAlchemy engine + session factory
++│   ├── models.py                  # ORM models (6 tables)
++│   ├── quality.py                 # 7-dimension quality scorer
++│   ├── narratives.py              # Disinformation narrative matcher
++│   ├── adapters.py                # Platform adapters (Twitter, Telegram)
++│   ├── api/
++│   │   └── main.py                # FastAPI app, all endpoints
++│   ├── pipeline/
++│   │   ├── orchestrator.py        # Main pipeline coordinator
++│   │   ├── fetch.py               # SerpAPI article fetcher
++│   │   ├── prompt_templates.py    # LLM prompt builder
++│   │   ├── analyze.py             # (Legacy) individual analysis
++│   │   ├── digest.py              # (Legacy) digest stage
++│   │   ├── summarize.py           # (Legacy) summarize stage
++│   │   └── translate.py           # (Legacy) translate stage
++│   ├── utils/
++│   │   ├── genai_client.py        # Google Gemini API wrapper
++│   │   ├── system_prompt.py       # System prompt loader (v1.3)
++│   │   └── logger.py              # Logging utilities
++│   └── data/
++│       ├── briefing_v1.json       # Briefing JSON schema reference
++│       ├── known_narratives.json  # 18 known disinformation narratives
++│       └── system_prompt_v1.3.txt # Enhanced system prompt for Gemini
++├── frontend/
++│   ├── package.json               # NPM dependencies
++│   ├── vite.config.ts             # Vite config (proxy /api → backend)
++│   ├── tsconfig.json              # TypeScript configuration
++│   ├── Dockerfile                 # Nginx-based production container
++│   └── src/
++│       ├── main.tsx               # React entry point
++│       ├── App.tsx                 # Application shell + sidebar
++│       ├── api.ts                 # Axios API client + type definitions
++│       ├── store.ts               # Redux store configuration
++│       ├── hooks.ts               # useAppSelector/useAppDispatch
++│       ├── slices/
++│       │   └── runsSlice.ts       # Redux slice for run selection
++│       ├── hooks/
++│       │   └── useKeyboardShortcuts.ts  # Global keyboard shortcut hook
++│       ├── contexts/
++│       │   └── NotificationContext.tsx  # Toast notification system
++│       └── components/
++│           ├── RunsTable.tsx       # Main analysis runs table
++│           ├── RunDetail.tsx       # Selected run detail panel
++│           ├── NewAnalysisDialog.tsx    # Create analysis form
++│           ├── ReportViewDialog.tsx     # Full-screen briefing viewer
++│           ├── SettingsDialog.tsx       # API key configuration
++│           ├── QualityBadge.tsx         # Quality score display
++│           ├── QualityRadarChart.tsx    # SVG radar chart (7 dimensions)
++│           ├── NarrativeTags.tsx        # Narrative match pills
++│           ├── MetricCard.tsx           # Dashboard metric card
++│           ├── StatusDistributionChart.tsx  # Run status pie chart
++│           ├── StatusIndicator.tsx      # Status badge component
++│           ├── ColdStartNotice.tsx      # Backend cold start warning
++│           ├── KeyboardShortcutsDialog.tsx  # Shortcut help dialog
++│           ├── ApiStatusInfo.tsx        # API configuration status
++│           ├── Skeletons.tsx            # Loading skeleton components
++│           ├── TestGuideDialog.tsx      # Tester walkthrough guide
++│           └── FeedbackDialog.tsx       # Tester feedback form
++├── tests/                         # pytest test suite
++│   ├── conftest.py                # DB fixtures (requires PostgreSQL)
++│   ├── fixtures/                  # Test fixture data files
++│   ├── test_quality.py            # Quality scorer tests (23 tests)
++│   ├── test_adapters.py           # Platform adapter tests (22 tests)
++│   ├── test_narratives.py         # Narrative matcher tests (11 tests)
++│   ├── test_schema.py             # JSON schema validation tests
++│   ├── test_api.py                # API endpoint tests
++│   ├── test_api_helpers.py        # API helper function tests
++│   ├── test_database.py           # Database connection tests
++│   ├── test_fetch.py              # Article fetcher tests
++│   ├── test_models.py             # ORM model tests
++│   ├── test_orchestrator.py       # Pipeline orchestrator tests
++│   └── test_pipeline.py           # End-to-end pipeline tests
++├── Dockerfile                     # Backend Docker image
++├── docker-compose.yml             # Multi-service orchestration
++├── render.yaml                    # Render deployment blueprint
++├── requirements.txt               # Python dependencies
++├── Makefile                       # Build/test shortcuts
++├── README.md                      # Project overview
++├── QUICK_START.md                 # Setup guide
++├── TROUBLESHOOTING.md             # Common issues
++└── DATABASE_CONNECTION.md         # Database configuration guide
++```
++
++---
++
++## Backend
++
++### Configuration
++
++**File**: `src/cddbs/config.py`
++
++All configuration is loaded from environment variables (with `.env` file support via `python-dotenv`).
++
++| Variable           | Default                                       | Description                          |
++|--------------------|-----------------------------------------------|--------------------------------------|
++| `SERPAPI_KEY`      | `None`                                        | SerpAPI key for news search          |
++| `GOOGLE_API_KEY`   | `None`                                        | Google Gemini API key                |
++| `GEMINI_MODEL`     | `gemini-2.5-flash`                            | Gemini model to use                  |
++| `ARTICLE_LIMIT`    | `3`                                           | Default max articles per analysis    |
++| `DATABASE_URL`     | `postgresql+psycopg2://admin:admin@db:5432/cddbs` | PostgreSQL connection string    |
++| `ALLOWED_ORIGINS`  | `*`                                           | CORS allowed origins (comma-separated)|
++| `DB_POOL_SIZE`     | `5`                                           | SQLAlchemy connection pool size      |
++| `DB_MAX_OVERFLOW`  | `10`                                          | Max overflow connections             |
++
++The `Settings` class automatically converts `postgres://` URLs (used by Render/Neon) to `postgresql://` for SQLAlchemy compatibility.
++
++### Database & Models
++
++**File**: `src/cddbs/database.py`
++
++- Uses `SQLAlchemy` with `declarative_base()`.
++- Connection pool configured with `pool_pre_ping=True` for connection health checks.
++- `init_db()` creates all tables on startup via `Base.metadata.create_all()` (no Alembic migrations required).
++
++**File**: `src/cddbs/models.py`
++
++Six ORM models across five tables:
++
++#### `Outlet`
++| Column   | Type    | Notes                    |
++|----------|---------|--------------------------|
++| id       | Integer | Primary key              |
++| name     | String  | Unique, indexed          |
++| url      | String  | Outlet website URL       |
++
++**Relationships**: `articles` → Article (one-to-many)
++
++#### `Article`
++| Column    | Type     | Notes                        |
++|-----------|----------|------------------------------|
++| id        | Integer  | Primary key                  |
++| outlet_id | Integer  | FK → outlets.id              |
++| report_id | Integer  | FK → reports.id              |
++| title     | String   | Article title                |
++| link      | String   | Article URL                  |
++| snippet   | Text     | Short excerpt                |
++| date      | String   | Publication date             |
++| meta      | JSON     | Analysis metadata (per-article analysis) |
++| full_text | Text     | Full article text            |
++| created_at| DateTime | Auto-set                     |
++
++**Relationships**: `outlet` → Outlet, `report` → Report
++
++#### `Report`
++| Column       | Type     | Notes                          |
++|--------------|----------|--------------------------------|
++| id           | Integer  | Primary key                    |
++| outlet       | String   | Outlet name (denormalized)     |
++| country      | String   | Country/region                 |
++| final_report | Text     | Generated intelligence briefing|
++| raw_response | Text     | Raw LLM response               |
++| data         | JSON     | Metadata (status, quality_score, narrative_matches_count, etc.) |
++| created_at   | DateTime | Auto-set                       |
++
++**Relationships**: `articles` → Article[], `briefing` → Briefing (one-to-one), `narrative_matches` → NarrativeMatch[]
++
++#### `Briefing`
++| Column          | Type     | Notes                           |
++|-----------------|----------|---------------------------------|
++| id              | Integer  | Primary key                     |
++| report_id       | Integer  | FK → reports.id (unique)        |
++| briefing_json   | JSON     | Structured briefing output      |
++| quality_score   | Integer  | Total score (0-70)              |
++| quality_rating  | String   | Excellent/Good/Acceptable/Poor/Failing |
++| quality_details | JSON     | Full scorecard breakdown         |
++| prompt_version  | String   | Default "v1.3"                  |
++| created_at      | DateTime | Auto-set                        |
++
++**Relationships**: `report` → Report
++
++#### `NarrativeMatch`
++| Column           | Type     | Notes                          |
++|------------------|----------|--------------------------------|
++| id               | Integer  | Primary key                    |
++| report_id        | Integer  | FK → reports.id                |
++| narrative_id     | String   | e.g. "anti_nato_001"           |
++| narrative_name   | String   | Human-readable name            |
++| category         | String   | Narrative category             |
++| confidence       | String   | high/moderate/low              |
++| matched_keywords | JSON     | Keywords that triggered match  |
++| match_count      | Integer  | Number of keyword matches      |
++| created_at       | DateTime | Auto-set                       |
++
++**Relationships**: `report` → Report
++
++#### `Feedback`
++| Column              | Type     | Notes                           |
++|---------------------|----------|---------------------------------|
++| id                  | Integer  | Primary key                     |
++| tester_name         | String   | Optional                        |
++| tester_role         | String   | analyst/developer/researcher/other |
++| overall_rating      | Integer  | 1-5, **required**               |
++| accuracy_rating     | Integer  | 1-5, **required**               |
++| usability_rating    | Integer  | 1-5, **required**               |
++| bugs_encountered    | Text     | **Required** (min 5 chars)      |
++| misleading_outputs  | Text     | Optional                        |
++| missing_features    | Text     | Optional                        |
++| ux_pain_points      | Text     | Optional                        |
++| professional_concerns| Text    | Optional                        |
++| would_recommend     | String   | yes/no/maybe                    |
++| additional_comments | Text     | Optional                        |
++| created_at          | DateTime | Auto-set                        |
++
++**No relationships** — standalone table for early-stage feedback collection.
++
++### API Endpoints
++
++**File**: `src/cddbs/api/main.py`
++
++The FastAPI app uses a `lifespan` context manager to initialize database tables on startup.
++
++#### Core Endpoints
++
++| Method | Path                              | Description                              |
++|--------|-----------------------------------|------------------------------------------|
++| GET    | `/`                               | Service status check                     |
++| GET    | `/health`                         | Health check (verifies DB connectivity)  |
++| GET    | `/api-status`                     | Check if SerpAPI/Gemini keys are configured |
++
++#### Analysis Runs
++
++| Method | Path                              | Description                              |
++|--------|-----------------------------------|------------------------------------------|
++| POST   | `/analysis-runs`                  | Create a new analysis run (async pipeline) |
++| GET    | `/analysis-runs`                  | List all runs with status + quality metrics |
++| GET    | `/analysis-runs/{report_id}`      | Get full report with articles            |
++
++**POST `/analysis-runs`** request body:
++```json
++{
++  "outlet": "RT",
++  "url": "rt.com",
++  "country": "Russia",
++  "num_articles": 5,
++  "serpapi_key": "user-provided-key",
++  "google_api_key": "user-provided-key",
++  "date_filter": "m"
++}
++```
++
++Date filter values: `h` (hour), `d` (day), `w` (week), `m` (month), `y` (year).
++
++#### Quality & Narratives
++
++| Method | Path                                     | Description                         |
++|--------|------------------------------------------|-------------------------------------|
++| GET    | `/analysis-runs/{id}/quality`            | Quality scorecard for a run         |
++| GET    | `/analysis-runs/{id}/narratives`         | Narrative matches for a run         |
++| GET    | `/narratives`                            | Full known narratives database      |
++
++#### Feedback
++
++| Method | Path         | Description                              |
++|--------|--------------|------------------------------------------|
++| POST   | `/feedback`  | Submit tester feedback                   |
++| GET    | `/feedback`  | List all feedback entries                |
++
++#### Auto-generated Documentation
++
++- **Swagger UI**: `http://localhost:8000/docs`
++- **ReDoc**: `http://localhost:8000/redoc`
++
++### Analysis Pipeline
++
++**File**: `src/cddbs/pipeline/orchestrator.py`
++
++The `run_pipeline()` function is the central coordinator. It executes in a FastAPI `BackgroundTasks` context.
++
++```
++run_pipeline()
++    │
++    ├── 1. fetch_articles()          ← SerpAPI (Google News)
++    │       └── Returns list of article dicts
++    │
++    ├── 2. get_consolidated_prompt() ← Build user prompt
++    │       └── Injects outlet, country, articles
++    │
++    ├── 3. call_gemini()             ← Google Gemini API
++    │       └── System prompt v1.3 + user prompt
++    │       └── Returns structured JSON
++    │
++    ├── 4. Parse JSON response
++    │       └── Extracts individual_analyses + final_briefing
++    │
++    ├── 5. Persist to database
++    │       ├── Update Report (final_report, data, raw_response)
++    │       └── Create Article rows (linked to report + outlet)
++    │
++    ├── 6. score_briefing()          ← Quality scorer (non-fatal)
++    │       └── Creates Briefing row with scorecard
++    │
++    └── 7. match_narratives_from_report()  ← Narrative matcher (non-fatal)
++            └── Creates NarrativeMatch rows
++```
++
++Key design decisions:
++- Quality scoring and narrative matching are wrapped in `try/except` — failures are logged but never crash the pipeline.
++- The Report's `data` JSON column stores summary metrics (`quality_score`, `quality_rating`, `narrative_matches_count`) for efficient list queries.
++- JSON parsing handles markdown code blocks (`\`\`\`json ... \`\`\``) and bare JSON from Gemini responses.
++
++**File**: `src/cddbs/pipeline/fetch.py`
++
++`fetch_articles()` uses SerpAPI's Google News engine:
++- Builds a search query: `"outlet_name" site:outlet_url`
++- Applies date filtering via `tbs=qdr:{period}`
++- Falls back to mock data when no API key is configured (for development/testing).
++- Country codes are normalized via `normalize_gl()` (supports full names like "Russia" → "ru").
++
++**File**: `src/cddbs/pipeline/prompt_templates.py`
++
++`get_consolidated_prompt()` builds the user-level prompt with strict rules:
++- No invention of claims or actors
++- Source attribution required
++- Fact/analysis separation
++- Neutral professional language
++- Output must be valid JSON with `individual_analyses` and `final_briefing`
++
++**File**: `src/cddbs/utils/genai_client.py`
++
++`call_gemini()` wraps the Google GenAI SDK:
++- Uses `gemini-2.5-flash` model
++- Low temperature (0.1) for deterministic output
++- Forces JSON response via `response_mime_type="application/json"`
++- System prompt loaded from `data/system_prompt_v1.3.txt`
++
++### Quality Scoring
++
++**File**: `src/cddbs/quality.py`
++
++A 7-dimension, 70-point rubric evaluates briefing quality:
++
++| Dimension                  | Max Score | What It Measures                          |
++|---------------------------|-----------|-------------------------------------------|
++| Structural Completeness   | 10        | Presence of all required briefing sections |
++| Attribution Quality       | 10        | How well claims are attributed to evidence |
++| Confidence Signaling      | 10        | Clarity of certainty communication        |
++| Evidence Presentation     | 10        | Effectiveness of evidence structure       |
++| Analytical Rigor          | 10        | Soundness of analytical reasoning         |
++| Actionability             | 10        | Usefulness to an analyst                  |
++| Readability               | 10        | Clarity and professionalism               |
++
++Rating thresholds:
++- **Excellent**: 60-70
++- **Good**: 50-59
++- **Acceptable**: 40-49
++- **Poor**: 30-39
++- **Failing**: 0-29
++
++Key functions:
++- `score_briefing(briefing_dict)` → Returns full scorecard dict
++- `format_scorecard(scorecard, briefing_id)` → Human-readable text output
++- Each `score_*()` function returns `(score, issues_list)`
++
++### Narrative Matching
++
++**File**: `src/cddbs/narratives.py`
++
++Keyword-based matching against 18 known disinformation narratives.
++
++Key functions:
++- `match_narratives(text, threshold=2)` → Match text against all narratives
++- `match_narratives_from_report(report_text, articles)` → Match report + articles (deduplicates)
++- `get_all_narratives()` → Return full narrative database (for `/narratives` endpoint)
++
++Confidence levels based on keyword match count:
++- **High**: 5+ keywords matched
++- **Moderate**: 3-4 keywords
++- **Low**: 2 keywords (minimum threshold)
++
++Data source: `src/cddbs/data/known_narratives.json`
++
++### Platform Adapters
++
++**File**: `src/cddbs/adapters.py`
++
++Normalizes platform-specific data into a common format. Currently supports:
++
++- **TwitterAdapter**: Normalizes Twitter/X API v2 data (profiles, tweets, engagement metrics, retweet detection).
++- **TelegramAdapter**: Normalizes Telegram MTProto/Bot API data (channels, messages, forwarding detection).
++
++Common data classes:
++- `PostData`: Normalized post/message across platforms
++- `ProfileData`: Normalized account/channel profile
++- `BriefingInput`: Standard input format for the pipeline
++
++These adapters are designed for future integration when direct platform data collection is added.
++
++---
++
++## Frontend
++
++### Application Shell
++
++**File**: `frontend/src/App.tsx`
++
++The main layout consists of:
++
++1. **AppBar** (top): Search bar (collapsible on hover), "New Analysis" button, Settings icon.
++2. **Drawer** (left sidebar): Pin/hover behavior, navigation items, Test Guide and Leave Feedback buttons at the bottom.
++3. **Main content area**: Dashboard metrics grid (4 cards), Runs table (left), and Run detail + Status chart (right).
++4. **Dialogs**: NewAnalysisDialog, SettingsDialog, ReportViewDialog, KeyboardShortcutsDialog, TestGuideDialog, FeedbackDialog.
++
++Keyboard shortcuts (via `useKeyboardShortcuts`):
++- `Ctrl+K` — Focus search
++- `Ctrl+N` — New analysis
++- `Ctrl+R` — Refresh data
++- `Shift+?` — Show keyboard shortcuts
++- `Escape` — Close dialogs
++
++### State Management
++
++**File**: `frontend/src/store.ts`
++
++Redux Toolkit store with a single slice:
++
++**`runsSlice`** (`frontend/src/slices/runsSlice.ts`):
++- `selectedRunId: number | null` — Currently selected run for detail view
++- Action: `setSelectedRunId(id)`
++
++Most data fetching uses TanStack React Query, not Redux:
++- `useQuery(["runs"])` — Fetches run list with auto-refresh every 10s when runs are active
++- `useQuery(["run", id])` — Fetches individual run detail
++- `useQuery(["quality", id])` — Fetches quality scorecard
++- `useQuery(["narratives", id])` — Fetches narrative matches
++
++### API Client
++
++**File**: `frontend/src/api.ts`
++
++Axios instance configured with `baseURL: "/api"` (proxied to backend via Vite/Nginx).
++
++#### Functions
++
++| Function                | Method | Path                              | Returns              |
++|------------------------|--------|-----------------------------------|----------------------|
++| `wakeUpBackend()`      | GET    | `/health`                         | void (fire-and-forget)|
++| `createAnalysisRun()`  | POST   | `/analysis-runs`                  | `RunStatus`          |
++| `fetchRuns()`          | GET    | `/analysis-runs`                  | `RunStatus[]`        |
++| `fetchRun(id)`         | GET    | `/analysis-runs/{id}`             | `ReportResponse`     |
++| `fetchApiStatus()`     | GET    | `/api-status`                     | `ApiStatus`          |
++| `fetchQuality(id)`     | GET    | `/analysis-runs/{id}/quality`     | `QualityResponse`    |
++| `fetchNarrativeMatches(id)` | GET| `/analysis-runs/{id}/narratives` | `NarrativeMatchItem[]`|
++| `fetchNarrativesDb()`  | GET    | `/narratives`                     | `NarrativeInfo[]`    |
++| `submitFeedback()`     | POST   | `/feedback`                       | `FeedbackResponse`   |
++
++#### Key Types
++
++- `RunStatus` — Run list item (id, outlet, status, quality_score, narrative_count)
++- `ReportResponse` — Full report with articles and metadata
++- `QualityResponse` — Quality scorecard (dimensions, total, rating)
++- `NarrativeMatchItem` — Matched narrative (keywords, confidence, count)
++- `FeedbackPayload` — Feedback submission form data
++
++### Components Reference
++
++#### Core Components
++
++| Component                   | File                        | Description                                       |
++|----------------------------|-----------------------------|---------------------------------------------------|
++| `RunsTable`                | `RunsTable.tsx`             | Sortable/filterable table of all analysis runs. Shows outlet, country, status, quality score, date. Row click selects run. |
++| `RunDetail`                | `RunDetail.tsx`             | Detail panel for selected run. Shows metadata, status, and "View Report" button. |
++| `NewAnalysisDialog`        | `NewAnalysisDialog.tsx`     | Modal form to create new analysis (outlet, URL, country, articles, date filter). Injects API keys from localStorage. |
++| `ReportViewDialog`         | `ReportViewDialog.tsx`      | Full-screen dialog showing the intelligence briefing. Left sidebar has articles, quality panel, narrative panel. Main area renders markdown briefing. |
++| `SettingsDialog`           | `SettingsDialog.tsx`        | API key configuration. Shows current key status. First-launch auto-open behavior. |
++
++#### Quality & Narrative Components
++
++| Component                   | File                        | Description                                       |
++|----------------------------|-----------------------------|---------------------------------------------------|
++| `QualityBadge`             | `QualityBadge.tsx`          | Displays quality score (X/70) with color-coded rating chip. |
++| `QualityRadarChart`        | `QualityRadarChart.tsx`     | Pure SVG radar chart showing all 7 quality dimensions. No external charting dependency. |
++| `NarrativeTags`            | `NarrativeTags.tsx`         | Color-coded narrative match pills with confidence badges and keyword chips on expand. |
++
++#### Utility Components
++
++| Component                   | File                        | Description                                       |
++|----------------------------|-----------------------------|---------------------------------------------------|
++| `MetricCard`               | `MetricCard.tsx`            | Dashboard summary card (title, value, icon, color, optional trend). |
++| `StatusDistributionChart`  | `StatusDistributionChart.tsx`| SVG pie chart of run status distribution.         |
++| `StatusIndicator`          | `StatusIndicator.tsx`       | Colored status badge (completed/running/failed/queued). |
++| `ColdStartNotice`          | `ColdStartNotice.tsx`       | Warning banner when backend is waking from cold start. |
++| `KeyboardShortcutsDialog`  | `KeyboardShortcutsDialog.tsx`| Help dialog listing available keyboard shortcuts.  |
++| `ApiStatusInfo`            | `ApiStatusInfo.tsx`         | Displays SerpAPI and Gemini key configuration status. |
++| `Skeletons`                | `Skeletons.tsx`             | Loading skeleton components (MetricCardSkeleton).  |
++
++#### Tester Components
++
++| Component                   | File                        | Description                                       |
++|----------------------------|-----------------------------|---------------------------------------------------|
++| `TestGuideDialog`          | `TestGuideDialog.tsx`       | Full-screen guide with prerequisites, 5-step walkthrough, test scenarios, and bug hunting checklist. |
++| `FeedbackDialog`           | `FeedbackDialog.tsx`        | Full-screen feedback form with 4 sections: About You, Ratings (3 mandatory), Critical Feedback (bugs mandatory), Final Verdict. |
++
++---
++
++## Data Files
++
++### `known_narratives.json`
++
++Contains 18 known disinformation narratives organized by category:
++
++- **Anti-NATO**: NATO expansion aggression, NATO internal division
++- **Ukraine Revisionism**: Ukraine as failed state, Denazification justification, Crimea legitimacy
++- **Western Hypocrisy**: Western double standards, Democracy promotion as interference
++- **Multipolar World**: US decline narrative, BRICS rising power
++- **Historical Revisionism**: Soviet victory distortion, Cold War reframing
++- **Biological/Chemical**: US biolab conspiracy
++- **Energy/Economic**: Energy dependence leverage
++- **Information Warfare**: Russophobia narrative, Western media manipulation
++- **Territorial**: Arctic sovereignty claims
++- **Election Interference**: Democratic process undermining
++
++Each narrative has: `id`, `name`, `description`, `keywords[]`, `frequency`, `active`.
++
++### `briefing_v1.json`
++
++JSON schema reference for the expected briefing output structure. Used by the quality scorer to validate structural completeness.
++
++### `system_prompt_v1.3.txt`
++
++Enhanced system prompt for Gemini that defines the analyst persona, output format requirements, and analytical standards.
++
++---
++
++## Testing
++
++### Running Tests
++
++```bash
++# Run standalone tests (no DB required)
++pytest tests/test_quality.py tests/test_adapters.py tests/test_narratives.py tests/test_schema.py --noconftest -q
++
++# Run all tests (requires PostgreSQL)
++pytest -q
++
++# Run with coverage
++pytest --cov=src/cddbs -q
++```
++
++### Test Structure
++
++| Test File             | Tests | Requires DB | Description                            |
++|----------------------|-------|-------------|----------------------------------------|
++| `test_quality.py`    | 23    | No          | All 7 quality scorer dimensions + edge cases |
++| `test_adapters.py`   | 22    | No          | Twitter + Telegram adapter normalization |
++| `test_narratives.py` | 11    | No          | Narrative matching, thresholds, dedup   |
++| `test_schema.py`     | ~5    | No          | JSON schema validation (requires `jsonschema`) |
++| `test_api.py`        | ~10   | Yes         | API endpoint integration tests          |
++| `test_api_helpers.py`| ~5    | Yes         | API helper function tests               |
++| `test_database.py`   | ~3    | Yes         | Database connection and table creation  |
++| `test_fetch.py`      | ~5    | No          | Article fetcher (mock SerpAPI)          |
++| `test_models.py`     | ~5    | Yes         | ORM model CRUD operations               |
++| `test_orchestrator.py`| ~5   | Yes         | Pipeline orchestrator integration       |
++| `test_pipeline.py`   | ~5    | Yes         | End-to-end pipeline tests               |
++
++The `conftest.py` sets up a test database session. Use `--noconftest` for standalone tests that don't need DB.
++
++---
++
++## Deployment
++
++### Local Development (Docker Compose)
++
++```bash
++# Start all services
++docker compose up --build
++
++# Services:
++# - Frontend: http://localhost:5173
++# - Backend:  http://localhost:8000
++# - Database: localhost:5432
++# - API Docs: http://localhost:8000/docs
++```
++
++### Production (Render)
++
++The `render.yaml` blueprint defines two web services and a database:
++
++1. **cddbs-api** (Backend)
++   - Docker build from root `Dockerfile`
++   - Health check: `/health`
++   - Environment: `DATABASE_URL` from Neon, `ALLOWED_ORIGINS=*`
++   - Pool settings: `DB_POOL_SIZE=2`, `DB_MAX_OVERFLOW=3` (free tier)
++
++2. **cddbs-frontend** (Frontend)
++   - Docker build from `frontend/Dockerfile`
++   - Nginx serves static build + proxies `/api` to backend
++
++3. **cddbs-db** (Database)
++   - Neon PostgreSQL (free tier)
++
++### Docker Images
++
++**Backend** (`Dockerfile`):
++```dockerfile
++FROM python:3.11-slim
++WORKDIR /app
++COPY requirements.txt /app/requirements.txt
++RUN pip install --no-cache-dir -r /app/requirements.txt
++COPY src /app/src
++ENV PYTHONPATH=/app
++CMD ["uvicorn", "src.cddbs.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
++```
++
++**Frontend** (`frontend/Dockerfile`): Multi-stage build → Nginx serving static files.
++
++---
++
++## Environment Variables
++
++### Required
++
++| Variable         | Description                              |
++|-----------------|------------------------------------------|
++| `DATABASE_URL`  | PostgreSQL connection string             |
++
++### Optional (Server-side defaults)
++
++| Variable          | Default            | Description                          |
++|-------------------|--------------------|--------------------------------------|
++| `SERPAPI_KEY`     | None               | Default SerpAPI key (users can override via BYOK) |
++| `GOOGLE_API_KEY`  | None               | Default Gemini key (users can override via BYOK)  |
++| `GEMINI_MODEL`    | `gemini-2.5-flash` | Gemini model ID                      |
++| `ARTICLE_LIMIT`   | `3`                | Default max articles per run         |
++| `ALLOWED_ORIGINS` | `*`                | CORS origins                         |
++| `DB_POOL_SIZE`    | `5`                | Connection pool size                 |
++| `DB_MAX_OVERFLOW` | `10`               | Max burst connections                |
++
++### Docker Compose `.env` Example
++
++```env
++POSTGRES_USER=admin
++POSTGRES_PASSWORD=admin
++POSTGRES_DB=cddbs
++DATABASE_URL=postgresql+psycopg2://admin:admin@db:5432/cddbs
++SERPAPI_KEY=your_key_here
++GOOGLE_API_KEY=your_key_here
++GEMINI_MODEL=gemini-2.5-flash
++ARTICLE_LIMIT=3
++```
++
++---
++
++## Contributing
++
++### Development Workflow
++
++1. Create a feature branch from `main`.
++2. Make changes following existing code patterns.
++3. Run standalone tests: `pytest tests/test_quality.py tests/test_adapters.py tests/test_narratives.py --noconftest -q`
++4. If modifying API/models, run full test suite with DB.
++5. Commit with clear messages.
++6. Push and create a pull request.
++
++### Code Conventions
++
++- **Backend**: Python 3.11+, no type annotations on simple functions, `print()` for debug logging.
++- **Frontend**: TypeScript strict mode, MUI 6 `sx` prop for styling, functional components with hooks.
++- **Database**: `extend_existing=True` on all models for hot-reload compatibility.
++- **Error handling**: Pipeline stages use `try/except` to be non-fatal. API returns proper HTTP status codes.
++
++### Adding a New API Endpoint
++
++1. Define Pydantic request/response schemas in `src/cddbs/api/main.py`.
++2. Add the route handler function with proper type annotations.
++3. Add corresponding TypeScript types and fetch function in `frontend/src/api.ts`.
++4. Create/update the relevant React component.
++5. Write tests.
++
++### Adding a New Quality Dimension
++
++1. Create a `score_new_dimension(briefing: dict) -> tuple` function in `quality.py`.
++2. Add it to the `dimensions` dict in `score_briefing()`.
++3. Update `max_score` (currently 70 = 7 × 10).
++4. Update `QualityRadarChart.tsx` to render the new dimension.
++5. Add tests in `test_quality.py`.
++
++### Adding a New Narrative
++
++1. Edit `src/cddbs/data/known_narratives.json`.
++2. Add the narrative under the appropriate category with `id`, `name`, `description`, `keywords[]`.
++3. The matcher picks it up automatically — no code changes needed.
++4. Add test cases in `test_narratives.py`.
+diff --git a/frontend/src/api.ts b/frontend/src/api.ts
+index 2c203b9..b944480 100644
+--- a/frontend/src/api.ts
++++ b/frontend/src/api.ts
+@@ -26,6 +26,8 @@ export interface CreateRunPayload {
+   serpapi_key?: string;
+   google_api_key?: string;
+   date_filter?: string;
++  platform?: string;
++  twitter_bearer_token?: string;
+ }
+ 
+ export interface RunStatus {
+@@ -185,3 +187,90 @@ export async function submitFeedback(payload: FeedbackPayload) {
+   const { data } = await api.post("/feedback", payload);
+   return data;
+ }
++
++// ---------------------------------------------------------------------------
++// Sprint 5: Batch Analysis
++// ---------------------------------------------------------------------------
++
++export interface BatchTarget {
++  outlet: string;
++  url?: string;
++  country?: string;
++  num_articles?: number;
++  platform?: string;
++  date_filter?: string;
++}
++
++export interface BatchCreatePayload {
++  name?: string;
++  targets: BatchTarget[];
++  serpapi_key?: string;
++  google_api_key?: string;
++  twitter_bearer_token?: string;
++}
++
++export interface BatchStatus {
++  id: number;
++  name: string | null;
++  status: string;
++  target_count: number;
++  completed_count: number;
++  failed_count: number;
++  report_ids: number[];
++  created_at: string;
++}
++
++export async function createBatchAnalysis(payload: BatchCreatePayload) {
++  const { data } = await api.post<BatchStatus>(
++    "/analysis-runs/batch",
++    payload
++  );
++  return data;
++}
++
++export async function fetchBatchStatus(batchId: number) {
++  const { data } = await api.get<BatchStatus>(
++    `/analysis-runs/batch/${batchId}`
++  );
++  return data;
++}
++
++export async function fetchBatches() {
++  const { data } = await api.get<BatchStatus[]>("/batches");
++  return data;
++}
++
++// ---------------------------------------------------------------------------
++// Sprint 5: Export
++// ---------------------------------------------------------------------------
++
++export function getExportUrl(reportId: number, format: "json" | "csv" | "pdf") {
++  return `${API_URL}/analysis-runs/${reportId}/export?format=${format}`;
++}
++
++// ---------------------------------------------------------------------------
++// Sprint 5: Metrics
++// ---------------------------------------------------------------------------
++
++export interface MetricsResponse {
++  total_runs: number;
++  completed: number;
++  failed: number;
++  running: number;
++  success_rate: number;
++  avg_quality_score: number | null;
++  total_narratives_detected: number;
++  quality_distribution: Record<string, number>;
++  failure_reasons: string[];
++  recent_24h: {
++    total: number;
++    completed: number;
++    failed: number;
++    success_rate: number | null;
++  };
++}
++
++export async function fetchMetrics() {
++  const { data } = await api.get<MetricsResponse>("/metrics");
++  return data;
++}
+diff --git a/frontend/src/components/NewAnalysisDialog.tsx b/frontend/src/components/NewAnalysisDialog.tsx
+index 8f35a3d..3e1b78c 100644
+--- a/frontend/src/components/NewAnalysisDialog.tsx
++++ b/frontend/src/components/NewAnalysisDialog.tsx
+@@ -33,6 +33,7 @@ export const NewAnalysisDialog = ({ open, onClose, onCreated }: Props) => {
+     country: "Russia",
+     num_articles: 5,
+     date_filter: "m",
++    platform: "news",
+   });
+   const [showApiStatus, setShowApiStatus] = useState(false);
+   const { showSuccess, showError } = useNotification();
+@@ -47,10 +48,12 @@ export const NewAnalysisDialog = ({ open, onClose, onCreated }: Props) => {
+     mutationFn: (payload: CreateRunPayload) => {
+       const serpapiKey = localStorage.getItem("SERPAPI_KEY");
+       const googleApiKey = localStorage.getItem("GOOGLE_API_KEY");
++      const twitterToken = localStorage.getItem("TWITTER_BEARER_TOKEN");
+       return createAnalysisRun({
+         ...payload,
+         serpapi_key: serpapiKey || undefined,
+         google_api_key: googleApiKey || undefined,
++        twitter_bearer_token: payload.platform === "twitter" ? (twitterToken || undefined) : undefined,
+       });
+     },
+     onSuccess: () => {
+@@ -115,9 +118,22 @@ export const NewAnalysisDialog = ({ open, onClose, onCreated }: Props) => {
+                 onChange={(e) => handleChange("country", e.target.value)}
+               />
+             </Grid>
++            <Grid item xs={12} sm={4}>
++              <FormControl fullWidth>
++                <InputLabel>Platform</InputLabel>
++                <Select
++                  value={form.platform || "news"}
++                  label="Platform"
++                  onChange={(e) => handleChange("platform", e.target.value)}
++                >
++                  <MenuItem value="news">News (SerpAPI)</MenuItem>
++                  <MenuItem value="twitter">Twitter/X</MenuItem>
++                </Select>
++              </FormControl>
++            </Grid>
+             <Grid item xs={12} sm={4}>
+               <TextField
+-                label="Articles"
++                label={form.platform === "twitter" ? "Posts" : "Articles"}
+                 type="number"
+                 inputProps={{ min: 1, max: 20 }}
+                 fullWidth
+@@ -134,6 +150,7 @@ export const NewAnalysisDialog = ({ open, onClose, onCreated }: Props) => {
+                   value={form.date_filter || "m"}
+                   label="Time Period"
+                   onChange={(e) => handleChange("date_filter", e.target.value)}
++                  disabled={form.platform === "twitter"}
+                 >
+                   <MenuItem value="h">Past Hour</MenuItem>
+                   <MenuItem value="d">Past Day</MenuItem>
+diff --git a/frontend/src/components/ReportViewDialog.tsx b/frontend/src/components/ReportViewDialog.tsx
+index dabc0f2..db63e98 100644
+--- a/frontend/src/components/ReportViewDialog.tsx
++++ b/frontend/src/components/ReportViewDialog.tsx
+@@ -27,7 +27,7 @@ import ArticleIcon from "@mui/icons-material/Article";
+ import { forwardRef, ReactElement, Ref } from "react";
+ import { TransitionProps } from "@mui/material/transitions";
+ import { useQuery } from "@tanstack/react-query";
+-import { fetchRun, fetchQuality, fetchNarrativeMatches } from "../api";
++import { fetchRun, fetchQuality, fetchNarrativeMatches, getExportUrl } from "../api";
+ import type { QualityResponse, NarrativeMatchItem } from "../api";
+ import ReactMarkdown from "react-markdown";
+ import { QualityBadge } from "./QualityBadge";
+@@ -204,8 +204,30 @@ export const ReportViewDialog = ({ open, onClose, runId }: Props) => {
+                             disabled={!data?.final_report}
+                             sx={{ textTransform: "none", borderRadius: 2 }}
+                         >
+-                            Download
++                            Markdown
+                         </Button>
++                        {runId && data?.status === "completed" && (
++                            <>
++                                <Button
++                                    color="inherit"
++                                    startIcon={<DownloadIcon />}
++                                    component="a"
++                                    href={getExportUrl(runId, "json")}
++                                    sx={{ textTransform: "none", borderRadius: 2 }}
++                                >
++                                    JSON
++                                </Button>
++                                <Button
++                                    color="inherit"
++                                    startIcon={<DownloadIcon />}
++                                    component="a"
++                                    href={getExportUrl(runId, "csv")}
++                                    sx={{ textTransform: "none", borderRadius: 2 }}
++                                >
++                                    CSV
++                                </Button>
++                            </>
++                        )}
+                         <Button
+                             color="inherit"
+                             startIcon={<ShareIcon />}
+diff --git a/src/cddbs/api/main.py b/src/cddbs/api/main.py
+index 0588211..9536044 100644
+--- a/src/cddbs/api/main.py
++++ b/src/cddbs/api/main.py
+@@ -6,11 +6,15 @@ from fastapi.middleware.cors import CORSMiddleware
+ from pydantic import BaseModel, Field
+ from sqlalchemy.orm import Session
+ 
++from fastapi.responses import Response
++
+ from src.cddbs.config import settings
+ from src.cddbs.database import SessionLocal, init_db
+-from src.cddbs.models import Article, Outlet, Report, Briefing, NarrativeMatch, Feedback
++from src.cddbs.models import Article, Outlet, Report, Briefing, NarrativeMatch, Feedback, Batch
+ from src.cddbs.pipeline.orchestrator import run_pipeline
+ from src.cddbs.narratives import get_all_narratives
++from src.cddbs.metrics import compute_metrics
++from src.cddbs.export import export_json, export_csv, export_pdf
+ 
+ 
+ from contextlib import asynccontextmanager
+@@ -86,12 +90,14 @@ class ReportResponse(BaseModel):
+ 
+ class RunCreateRequest(BaseModel):
+     outlet: str
+-    url: str
+-    country: str
++    url: str = ""
++    country: str = ""
+     num_articles: int = Field(5, ge=1, le=20)
+     serpapi_key: Optional[str] = None
+     google_api_key: Optional[str] = None
+     date_filter: Optional[str] = Field("m", description="Date filter for articles: h (hour), d (day), w (week), m (month), y (year)")
++    platform: str = Field("news", description="Platform: news (SerpAPI) or twitter (API v2)")
++    twitter_bearer_token: Optional[str] = None
+ 
+ 
+ class RunStatusResponse(BaseModel):
+@@ -153,28 +159,34 @@ def _run_analysis_job(
+     num_articles: int = 5,
+     serpapi_key: Optional[str] = None,
+     google_api_key: Optional[str] = None,
+-    date_filter: str = "m"
++    date_filter: str = "m",
++    platform: str = "news",
++    twitter_bearer_token: Optional[str] = None,
++    batch_id: Optional[int] = None,
+ ):
+     """
+     Background job that executes the analysis pipeline and persists results.
+     """
+     db = SessionLocal()
+     try:
+-        # handle updating the report and articles
+         run_pipeline(
+-            outlet, 
+-            country, 
+-            report_id=report_id, 
+-            num_articles=num_articles, 
++            outlet,
++            country,
++            report_id=report_id,
++            num_articles=num_articles,
+             url=url,
+             serpapi_key=serpapi_key,
+             google_api_key=google_api_key,
+-            date_filter=date_filter
++            date_filter=date_filter,
++            platform=platform,
++            twitter_bearer_token=twitter_bearer_token,
+         )
+ 
++        # Update batch progress if part of a batch
++        if batch_id:
++            _update_batch_progress(db, batch_id, success=True)
++
+     except Exception as exc:  # noqa: BLE001
+-        # If something fails, we still want the report row to exist; we just
+-        # store the error message in its data payload.
+         report = db.query(Report).filter(Report.id == report_id).first()
+         if report:
+             report.data = {
+@@ -187,10 +199,31 @@ def _run_analysis_job(
+             }
+             db.add(report)
+             db.commit()
++        if batch_id:
++            _update_batch_progress(db, batch_id, success=False)
+     finally:
+         db.close()
+ 
+ 
++def _update_batch_progress(db: Session, batch_id: int, success: bool):
++    """Update batch completion counters after a target finishes."""
++    batch = db.query(Batch).filter(Batch.id == batch_id).first()
++    if not batch:
++        return
++    if success:
++        batch.completed_count = (batch.completed_count or 0) + 1
++    else:
++        batch.failed_count = (batch.failed_count or 0) + 1
++
++    total_done = (batch.completed_count or 0) + (batch.failed_count or 0)
++    if total_done >= batch.target_count:
++        batch.status = "completed" if (batch.failed_count or 0) == 0 else "completed_with_errors"
++    else:
++        batch.status = "running"
++    db.add(batch)
++    db.commit()
++
++
+ # ---------------------------------------------------------------------------
+ # Public API
+ # ---------------------------------------------------------------------------
+@@ -234,7 +267,9 @@ def create_analysis_run(
+         num_articles=payload.num_articles,
+         serpapi_key=payload.serpapi_key,
+         google_api_key=payload.google_api_key,
+-        date_filter=payload.date_filter or "m"
++        date_filter=payload.date_filter or "m",
++        platform=payload.platform or "news",
++        twitter_bearer_token=payload.twitter_bearer_token,
+     )
+ 
+     return RunStatusResponse(
+@@ -336,31 +371,6 @@ def healthcheck(db: Session = Depends(get_db)):
+     return {"status": "ok"}
+ 
+ 
+-@app.get("/api-status")
+-def api_status():
+-    """
+-    Check configuration status of external APIs (SerpAPI and Gemini).
+-    This endpoint ONLY checks if API keys are configured - it does NOT make actual API calls
+-    to avoid consuming tokens unnecessarily.
+-    """
+-    from src.cddbs.config import settings
+-
+-    status = {
+-        "serpapi": {
+-            "configured": bool(settings.SERPAPI_KEY),
+-            "status": "configured" if settings.SERPAPI_KEY else "not_configured",
+-            "message": "SerpAPI key is configured" if settings.SERPAPI_KEY else "SerpAPI key not configured in .env file",
+-        },
+-        "gemini": {
+-            "configured": bool(settings.GOOGLE_API_KEY),
+-            "status": "configured" if settings.GOOGLE_API_KEY else "not_configured",
+-            "message": "Google API key is configured" if settings.GOOGLE_API_KEY else "Google API key not configured in .env file",
+-        },
+-    }
+-
+-    return status
+-
+-
+ # ---------------------------------------------------------------------------
+ # Sprint 4: Quality & Narrative Endpoints
+ # ---------------------------------------------------------------------------
+@@ -530,3 +540,240 @@ def submit_feedback(payload: FeedbackCreateRequest, db: Session = Depends(get_db
+ def list_feedback(db: Session = Depends(get_db)):
+     """List all feedback entries (for dev review)."""
+     return db.query(Feedback).order_by(Feedback.created_at.desc()).all()
++
++
++# ---------------------------------------------------------------------------
++# Sprint 5: Batch Analysis
++# ---------------------------------------------------------------------------
++
++
++class BatchTarget(BaseModel):
++    outlet: str
++    url: str = ""
++    country: str = ""
++    num_articles: int = Field(5, ge=1, le=20)
++    platform: str = "news"
++    date_filter: str = "m"
++
++
++class BatchCreateRequest(BaseModel):
++    name: Optional[str] = None
++    targets: List[BatchTarget] = Field(..., min_length=1, max_length=5)
++    serpapi_key: Optional[str] = None
++    google_api_key: Optional[str] = None
++    twitter_bearer_token: Optional[str] = None
++
++
++class BatchStatusResponse(BaseModel):
++    id: int
++    name: Optional[str] = None
++    status: str
++    target_count: int
++    completed_count: int
++    failed_count: int
++    report_ids: List[int] = Field(default_factory=list)
++    created_at: datetime
++
++    model_config = {"from_attributes": True}
++
++
++@app.post("/analysis-runs/batch", response_model=BatchStatusResponse)
++def create_batch_analysis(
++    payload: BatchCreateRequest,
++    background_tasks: BackgroundTasks,
++    db: Session = Depends(get_db),
++):
++    """Create a batch of analysis runs for multiple targets."""
++    if len(payload.targets) > settings.BATCH_MAX_SIZE:
++        raise HTTPException(
++            status_code=400,
++            detail=f"Batch size exceeds maximum of {settings.BATCH_MAX_SIZE}",
++        )
++
++    # Create batch record
++    batch = Batch(
++        name=payload.name or f"Batch ({len(payload.targets)} targets)",
++        status="queued",
++        target_count=len(payload.targets),
++    )
++    db.add(batch)
++    db.commit()
++    db.refresh(batch)
++
++    # Create a report for each target and schedule background jobs
++    report_ids = []
++    for target in payload.targets:
++        report = Report(
++            outlet=target.outlet,
++            country=target.country,
++            final_report=None,
++            data={
++                "outlet": target.outlet,
++                "url": target.url,
++                "country": target.country,
++                "analysis_date": datetime.now(UTC).isoformat(),
++                "articles_analyzed": 0,
++                "status": "pending",
++                "batch_id": batch.id,
++            },
++        )
++        db.add(report)
++        db.commit()
++        db.refresh(report)
++        report_ids.append(report.id)
++
++        background_tasks.add_task(
++            _run_analysis_job,
++            report_id=report.id,
++            outlet=target.outlet,
++            url=target.url,
++            country=target.country,
++            num_articles=target.num_articles,
++            serpapi_key=payload.serpapi_key,
++            google_api_key=payload.google_api_key,
++            date_filter=target.date_filter,
++            platform=target.platform,
++            twitter_bearer_token=payload.twitter_bearer_token,
++            batch_id=batch.id,
++        )
++
++    # Store report IDs on the batch
++    batch.report_ids = report_ids
++    batch.status = "running"
++    db.add(batch)
++    db.commit()
++    db.refresh(batch)
++
++    return BatchStatusResponse(
++        id=batch.id,
++        name=batch.name,
++        status=batch.status,
++        target_count=batch.target_count,
++        completed_count=0,
++        failed_count=0,
++        report_ids=report_ids,
++        created_at=batch.created_at,
++    )
++
++
++@app.get("/analysis-runs/batch/{batch_id}", response_model=BatchStatusResponse)
++def get_batch_status(batch_id: int, db: Session = Depends(get_db)):
++    """Get the status of a batch analysis."""
++    batch = db.query(Batch).filter(Batch.id == batch_id).first()
++    if not batch:
++        raise HTTPException(status_code=404, detail="Batch not found")
++
++    return BatchStatusResponse(
++        id=batch.id,
++        name=batch.name,
++        status=batch.status,
++        target_count=batch.target_count,
++        completed_count=batch.completed_count or 0,
++        failed_count=batch.failed_count or 0,
++        report_ids=batch.report_ids or [],
++        created_at=batch.created_at,
++    )
++
++
++@app.get("/batches", response_model=List[BatchStatusResponse])
++def list_batches(db: Session = Depends(get_db)):
++    """List all batch analyses."""
++    batches = db.query(Batch).order_by(Batch.created_at.desc()).all()
++    return [
++        BatchStatusResponse(
++            id=b.id,
++            name=b.name,
++            status=b.status,
++            target_count=b.target_count,
++            completed_count=b.completed_count or 0,
++            failed_count=b.failed_count or 0,
++            report_ids=b.report_ids or [],
++            created_at=b.created_at,
++        )
++        for b in batches
++    ]
++
++
++# ---------------------------------------------------------------------------
++# Sprint 5: Export
++# ---------------------------------------------------------------------------
++
++
++@app.get("/analysis-runs/{report_id}/export")
++def export_report(
++    report_id: int,
++    format: str = "json",
++    db: Session = Depends(get_db),
++):
++    """Export an analysis report in JSON, CSV, or PDF format."""
++    report = db.query(Report).filter(Report.id == report_id).first()
++    if not report:
++        raise HTTPException(status_code=404, detail="Report not found")
++
++    briefing = db.query(Briefing).filter(Briefing.report_id == report_id).first()
++    narratives = db.query(NarrativeMatch).filter(
++        NarrativeMatch.report_id == report_id
++    ).order_by(NarrativeMatch.match_count.desc()).all()
++    articles = report.articles
++
++    if format == "json":
++        content = export_json(report, briefing, narratives, articles)
++        return Response(
++            content=content,
++            media_type="application/json",
++            headers={"Content-Disposition": f"attachment; filename=cddbs_report_{report_id}.json"},
++        )
++    elif format == "csv":
++        content = export_csv(report, briefing, narratives, articles)
++        return Response(
++            content=content,
++            media_type="text/csv",
++            headers={"Content-Disposition": f"attachment; filename=cddbs_report_{report_id}.csv"},
++        )
++    elif format == "pdf":
++        content = export_pdf(report, briefing, narratives, articles)
++        if content is None:
++            raise HTTPException(status_code=501, detail="PDF export not available (reportlab not installed)")
++        return Response(
++            content=content,
++            media_type="application/pdf",
++            headers={"Content-Disposition": f"attachment; filename=cddbs_report_{report_id}.pdf"},
++        )
++    else:
++        raise HTTPException(status_code=400, detail=f"Unsupported format: {format}. Use json, csv, or pdf.")
++
++
++# ---------------------------------------------------------------------------
++# Sprint 5: Metrics
++# ---------------------------------------------------------------------------
++
++
++@app.get("/metrics")
++def get_metrics(db: Session = Depends(get_db)):
++    """Return operational metrics across all analysis runs."""
++    return compute_metrics(db)
++
++
++@app.get("/api-status")
++def api_status_extended():
++    """
++    Check configuration status of external APIs.
++    Extended in Sprint 5 with Twitter status.
++    """
++    return {
++        "serpapi": {
++            "configured": bool(settings.SERPAPI_KEY),
++            "status": "configured" if settings.SERPAPI_KEY else "not_configured",
++            "message": "SerpAPI key is configured" if settings.SERPAPI_KEY else "SerpAPI key not configured",
++        },
++        "gemini": {
++            "configured": bool(settings.GOOGLE_API_KEY),
++            "status": "configured" if settings.GOOGLE_API_KEY else "not_configured",
++            "message": "Google API key is configured" if settings.GOOGLE_API_KEY else "Google API key not configured",
++        },
++        "twitter": {
++            "configured": bool(settings.TWITTER_BEARER_TOKEN),
++            "status": "configured" if settings.TWITTER_BEARER_TOKEN else "not_configured",
++            "message": "Twitter bearer token is configured" if settings.TWITTER_BEARER_TOKEN else "Twitter bearer token not configured (optional)",
++        },
++    }
+diff --git a/src/cddbs/config.py b/src/cddbs/config.py
+index af095b6..8d81db4 100644
+--- a/src/cddbs/config.py
++++ b/src/cddbs/config.py
+@@ -7,6 +7,8 @@ class Settings:
+     GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+     GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+     ARTICLE_LIMIT = int(os.getenv("ARTICLE_LIMIT", 3))
++    TWITTER_BEARER_TOKEN = os.getenv("TWITTER_BEARER_TOKEN")
++    BATCH_MAX_SIZE = int(os.getenv("BATCH_MAX_SIZE", "5"))
+     
+     _db_url = os.getenv("DATABASE_URL", "postgresql+psycopg2://admin:admin@db:5432/cddbs")
+     # Render uses postgres:// but SQLAlchemy needs postgresql://
+diff --git a/src/cddbs/export.py b/src/cddbs/export.py
+new file mode 100644
+index 0000000..2b69120
+--- /dev/null
++++ b/src/cddbs/export.py
+@@ -0,0 +1,215 @@
++"""
++CDDBS Export Module
++
++Generates analysis reports in JSON, CSV, and PDF formats for offline sharing.
++"""
++
++import csv
++import io
++import json
++from datetime import datetime, UTC
++from typing import Optional
++
++
++def export_json(report, briefing, narrative_matches, articles) -> str:
++    """Export a complete analysis report as structured JSON."""
++    data = {
++        "export_metadata": {
++            "format": "json",
++            "version": "1.0",
++            "exported_at": datetime.now(UTC).isoformat(),
++            "system": "CDDBS",
++        },
++        "report": {
++            "id": report.id,
++            "outlet": report.outlet,
++            "country": report.country,
++            "created_at": report.created_at.isoformat() if report.created_at else None,
++            "final_report": report.final_report,
++            "articles_analyzed": (report.data or {}).get("articles_analyzed", 0),
++        },
++        "quality": None,
++        "narratives": [],
++        "articles": [],
++    }
++
++    if briefing:
++        data["quality"] = {
++            "score": briefing.quality_score,
++            "max_score": 70,
++            "rating": briefing.quality_rating,
++            "prompt_version": briefing.prompt_version,
++            "details": briefing.quality_details,
++        }
++
++    for nm in narrative_matches:
++        data["narratives"].append({
++            "narrative_id": nm.narrative_id,
++            "narrative_name": nm.narrative_name,
++            "category": nm.category,
++            "confidence": nm.confidence,
++            "matched_keywords": nm.matched_keywords,
++            "match_count": nm.match_count,
++        })
++
++    for a in articles:
++        data["articles"].append({
++            "id": a.id,
++            "title": a.title,
++            "link": a.link,
++            "snippet": a.snippet,
++            "date": a.date,
++        })
++
++    return json.dumps(data, indent=2, default=str)
++
++
++def export_csv(report, briefing, narrative_matches, articles) -> str:
++    """Export analysis data as CSV (flattened tabular format)."""
++    output = io.StringIO()
++
++    # Section 1: Report summary
++    writer = csv.writer(output)
++    writer.writerow(["# CDDBS Analysis Export"])
++    writer.writerow([])
++    writer.writerow(["Report ID", "Outlet", "Country", "Created", "Quality Score", "Quality Rating", "Articles Analyzed"])
++    writer.writerow([
++        report.id,
++        report.outlet,
++        report.country,
++        report.created_at.isoformat() if report.created_at else "",
++        briefing.quality_score if briefing else "",
++        briefing.quality_rating if briefing else "",
++        (report.data or {}).get("articles_analyzed", 0),
++    ])
++    writer.writerow([])
++
++    # Section 2: Articles
++    writer.writerow(["# Articles"])
++    writer.writerow(["Article ID", "Title", "Link", "Date", "Snippet"])
++    for a in articles:
++        writer.writerow([a.id, a.title, a.link, a.date, (a.snippet or "")[:200]])
++    writer.writerow([])
++
++    # Section 3: Narrative Matches
++    writer.writerow(["# Narrative Matches"])
++    writer.writerow(["Narrative ID", "Name", "Category", "Confidence", "Match Count", "Keywords"])
++    for nm in narrative_matches:
++        keywords = ", ".join(nm.matched_keywords) if nm.matched_keywords else ""
++        writer.writerow([nm.narrative_id, nm.narrative_name, nm.category, nm.confidence, nm.match_count, keywords])
++
++    return output.getvalue()
++
++
++def export_pdf(report, briefing, narrative_matches, articles) -> Optional[bytes]:
++    """
++    Export analysis as a formatted PDF report.
++
++    Uses reportlab if available, otherwise returns None.
++    """
++    try:
++        from reportlab.lib.pagesizes import A4
++        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
++        from reportlab.lib.units import inch
++        from reportlab.lib.colors import HexColor
++        from reportlab.platypus import (
++            SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
++        )
++    except ImportError:
++        print("DEBUG: reportlab not installed, PDF export unavailable")
++        return None
++
++    buffer = io.BytesIO()
++    doc = SimpleDocTemplate(buffer, pagesize=A4, topMargin=0.75 * inch, bottomMargin=0.75 * inch)
++
++    styles = getSampleStyleSheet()
++    title_style = ParagraphStyle(
++        "CDDBSTitle",
++        parent=styles["Title"],
++        fontSize=18,
++        textColor=HexColor("#1a237e"),
++        spaceAfter=12,
++    )
++    heading_style = ParagraphStyle(
++        "CDDBSHeading",
++        parent=styles["Heading2"],
++        fontSize=13,
++        textColor=HexColor("#1565c0"),
++        spaceAfter=8,
++        spaceBefore=16,
++    )
++    body_style = styles["BodyText"]
++    body_style.spaceAfter = 6
++
++    elements = []
++
++    # Title
++    elements.append(Paragraph("CDDBS Intelligence Briefing", title_style))
++    elements.append(Spacer(1, 8))
++
++    # Report metadata
++    quality_str = f"{briefing.quality_score}/70 ({briefing.quality_rating})" if briefing else "N/A"
++    meta_data = [
++        ["Outlet", report.outlet],
++        ["Country", report.country or "N/A"],
++        ["Date", report.created_at.strftime("%Y-%m-%d %H:%M UTC") if report.created_at else "N/A"],
++        ["Articles Analyzed", str((report.data or {}).get("articles_analyzed", 0))],
++        ["Quality Score", quality_str],
++    ]
++    meta_table = Table(meta_data, colWidths=[1.8 * inch, 4.5 * inch])
++    meta_table.setStyle(TableStyle([
++        ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
++        ("FONTSIZE", (0, 0), (-1, -1), 9),
++        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
++        ("TOPPADDING", (0, 0), (-1, -1), 2),
++    ]))
++    elements.append(meta_table)
++    elements.append(Spacer(1, 12))
++
++    # Narrative matches
++    if narrative_matches:
++        elements.append(Paragraph("Detected Narratives", heading_style))
++        for nm in narrative_matches:
++            elements.append(Paragraph(
++                f"<b>{nm.narrative_name}</b> — {nm.confidence} confidence ({nm.match_count} keyword matches)",
++                body_style,
++            ))
++
++    # Briefing content
++    if report.final_report:
++        elements.append(Paragraph("Intelligence Briefing", heading_style))
++        for paragraph in report.final_report.split("\n\n"):
++            clean = paragraph.strip()
++            if not clean:
++                continue
++            # Handle markdown headers
++            if clean.startswith("# "):
++                elements.append(Paragraph(clean[2:], heading_style))
++            elif clean.startswith("## "):
++                elements.append(Paragraph(clean[3:], heading_style))
++            else:
++                # Escape XML special chars for reportlab
++                clean = clean.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
++                elements.append(Paragraph(clean, body_style))
++
++    # Articles
++    if articles:
++        elements.append(Paragraph("Source Articles", heading_style))
++        for a in articles:
++            title = (a.title or "Untitled").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
++            elements.append(Paragraph(f"<b>{title}</b>", body_style))
++            if a.link:
++                link = a.link.replace("&", "&amp;")
++                elements.append(Paragraph(f"<i>{link}</i>", body_style))
++
++    # Footer
++    elements.append(Spacer(1, 24))
++    footer_style = ParagraphStyle("Footer", parent=body_style, fontSize=7, textColor=HexColor("#666666"))
++    elements.append(Paragraph(
++        f"Generated by CDDBS on {datetime.now(UTC).strftime('%Y-%m-%d %H:%M UTC')}. "
++        "This is an automated analysis and should be verified by qualified analysts.",
++        footer_style,
++    ))
++
++    doc.build(elements)
++    return buffer.getvalue()
+diff --git a/src/cddbs/metrics.py b/src/cddbs/metrics.py
+new file mode 100644
+index 0000000..ce5be19
+--- /dev/null
++++ b/src/cddbs/metrics.py
+@@ -0,0 +1,96 @@
++"""
++CDDBS Analysis Metrics
++
++Computes operational metrics from the database: success rates, quality trends,
++analysis durations, and failure reasons.
++"""
++
++from datetime import datetime, UTC, timedelta
++from sqlalchemy.orm import Session
++from src.cddbs.models import Report, Briefing, NarrativeMatch
++
++
++def compute_metrics(db: Session) -> dict:
++    """Compute operational metrics across all analysis runs."""
++    reports = db.query(Report).all()
++
++    total = len(reports)
++    if total == 0:
++        return {
++            "total_runs": 0,
++            "completed": 0,
++            "failed": 0,
++            "running": 0,
++            "success_rate": 0.0,
++            "avg_quality_score": None,
++            "total_narratives_detected": 0,
++            "failure_reasons": [],
++            "quality_distribution": {"excellent": 0, "good": 0, "acceptable": 0, "poor": 0, "failing": 0},
++            "recent_24h": {"total": 0, "completed": 0, "failed": 0, "success_rate": None},
++        }
++
++    completed = 0
++    failed = 0
++    running = 0
++    failure_reasons = []
++
++    for r in reports:
++        data = r.data or {}
++        errors = data.get("errors") if isinstance(data, dict) else None
++        if errors:
++            failed += 1
++            for err in errors:
++                failure_reasons.append(str(err)[:200])
++        elif not r.final_report:
++            running += 1
++        else:
++            completed += 1
++
++    # Quality metrics from briefings
++    briefings = db.query(Briefing).filter(Briefing.quality_score.isnot(None)).all()
++    quality_scores = [b.quality_score for b in briefings]
++    avg_quality = sum(quality_scores) / len(quality_scores) if quality_scores else None
++
++    quality_dist = {"excellent": 0, "good": 0, "acceptable": 0, "poor": 0, "failing": 0}
++    for b in briefings:
++        rating = (b.quality_rating or "").lower()
++        if rating in quality_dist:
++            quality_dist[rating] += 1
++
++    # Narrative metrics
++    total_narrative_matches = db.query(NarrativeMatch).count()
++
++    # Recent metrics (last 24h)
++    cutoff = datetime.now(UTC) - timedelta(hours=24)
++    recent_reports = [r for r in reports if r.created_at and r.created_at.replace(tzinfo=UTC) > cutoff]
++    recent_total = len(recent_reports)
++    recent_completed = 0
++    recent_failed = 0
++    for r in recent_reports:
++        data = r.data or {}
++        errors = data.get("errors") if isinstance(data, dict) else None
++        if errors:
++            recent_failed += 1
++        elif r.final_report:
++            recent_completed += 1
++
++    success_rate = (completed / total * 100) if total > 0 else 0.0
++    recent_success_rate = (recent_completed / recent_total * 100) if recent_total > 0 else None
++
++    return {
++        "total_runs": total,
++        "completed": completed,
++        "failed": failed,
++        "running": running,
++        "success_rate": round(success_rate, 1),
++        "avg_quality_score": round(avg_quality, 1) if avg_quality is not None else None,
++        "total_narratives_detected": total_narrative_matches,
++        "quality_distribution": quality_dist,
++        "failure_reasons": failure_reasons[-10:],  # Last 10 failures
++        "recent_24h": {
++            "total": recent_total,
++            "completed": recent_completed,
++            "failed": recent_failed,
++            "success_rate": round(recent_success_rate, 1) if recent_success_rate is not None else None,
++        },
++    }
+diff --git a/src/cddbs/models.py b/src/cddbs/models.py
+index 4bf8c5d..cdbc955 100644
+--- a/src/cddbs/models.py
++++ b/src/cddbs/models.py
+@@ -78,6 +78,20 @@ class NarrativeMatch(Base):
+     report = relationship("Report", back_populates="narrative_matches")
+ 
+ 
++class Batch(Base):
++    """Batch analysis — groups multiple analysis runs."""
++    __tablename__ = "batches"
++    __table_args__ = {'extend_existing': True}
++    id = Column(Integer, primary_key=True, index=True)
++    name = Column(String, nullable=True)
++    status = Column(String, default="queued")  # queued/running/completed/failed
++    target_count = Column(Integer, default=0)
++    completed_count = Column(Integer, default=0)
++    failed_count = Column(Integer, default=0)
++    report_ids = Column(JSON, default=list)  # [1, 2, 3]
++    created_at = Column(DateTime, default=lambda: datetime.now(UTC))
++
++
+ class Feedback(Base):
+     """Tester feedback — standalone table, no relationships."""
+     __tablename__ = "feedback"
+diff --git a/src/cddbs/pipeline/orchestrator.py b/src/cddbs/pipeline/orchestrator.py
+index a45548d..14e9c27 100644
+--- a/src/cddbs/pipeline/orchestrator.py
++++ b/src/cddbs/pipeline/orchestrator.py
+@@ -9,6 +9,25 @@ from src.cddbs.quality import score_briefing
+ from src.cddbs.narratives import match_narratives_from_report
+ 
+ 
++def _fetch_for_platform(platform, outlet, country, num_articles, url, serpapi_key, twitter_bearer_token, date_filter):
++    """Route data fetching based on platform type."""
++    if platform == "twitter":
++        try:
++            from src.cddbs.pipeline.twitter_client import fetch_twitter_data, briefing_input_to_articles
++            briefing_input = fetch_twitter_data(
++                handle=outlet,
++                num_posts=num_articles or 10,
++                bearer_token=twitter_bearer_token,
++            )
++            if briefing_input and briefing_input.posts:
++                return briefing_input_to_articles(briefing_input)
++            print("DEBUG: Twitter fetch returned no data, falling back to SerpAPI")
++        except Exception as e:
++            print(f"DEBUG: Twitter fetch failed ({e}), falling back to SerpAPI")
++    # Default: SerpAPI news
++    return fetch_articles(outlet, country, num_articles=num_articles, url=url, api_key=serpapi_key, time_period=date_filter)
++
++
+ def run_pipeline(
+     outlet: str,
+     country: str,
+@@ -17,11 +36,13 @@ def run_pipeline(
+     url: str = None,
+     serpapi_key: str = None,
+     google_api_key: str = None,
+-    date_filter: str = "m"
++    date_filter: str = "m",
++    platform: str = "news",
++    twitter_bearer_token: str = None,
+ ):
+-    print(f"DEBUG: run_pipeline started for outlet={outlet}, country={country}, report_id={report_id}, num_articles={num_articles}, url={url}, date_filter={date_filter}")
+-    articles = fetch_articles(outlet, country, num_articles=num_articles, url=url, api_key=serpapi_key, time_period=date_filter)
+-    print(f"DEBUG: fetch_articles returned {len(articles)} articles")
++    print(f"DEBUG: run_pipeline started for outlet={outlet}, country={country}, report_id={report_id}, num_articles={num_articles}, url={url}, date_filter={date_filter}, platform={platform}")
++    articles = _fetch_for_platform(platform, outlet, country, num_articles, url, serpapi_key, twitter_bearer_token, date_filter)
++    print(f"DEBUG: fetch returned {len(articles)} articles/posts")
+ 
+     session = SessionLocal()
+     try:
+diff --git a/src/cddbs/pipeline/twitter_client.py b/src/cddbs/pipeline/twitter_client.py
+new file mode 100644
+index 0000000..aeb86be
+--- /dev/null
++++ b/src/cddbs/pipeline/twitter_client.py
+@@ -0,0 +1,167 @@
++"""
++Twitter API v2 Client for CDDBS
++
++Fetches tweets and profile data from Twitter/X using API v2 Bearer Token auth.
++Normalizes data via TwitterAdapter into the analysis pipeline format.
++"""
++
++import time
++import requests
++from typing import List, Dict, Optional
++from src.cddbs.config import settings
++from src.cddbs.adapters import TwitterAdapter, BriefingInput
++
++
++TWITTER_API_BASE = "https://api.twitter.com/2"
++
++# Fields to request from Twitter API v2
++USER_FIELDS = "created_at,description,public_metrics,verified,profile_image_url"
++TWEET_FIELDS = "created_at,public_metrics,entities,referenced_tweets,lang,attachments"
++
++
++def _get_bearer_token(api_key: Optional[str] = None) -> Optional[str]:
++    """Get Twitter bearer token from parameter or environment."""
++    return api_key or settings.TWITTER_BEARER_TOKEN
++
++
++def _make_request(url: str, params: dict, bearer_token: str, max_retries: int = 3) -> Optional[dict]:
++    """Make authenticated Twitter API request with retry on rate limits."""
++    headers = {"Authorization": f"Bearer {bearer_token}"}
++
++    for attempt in range(max_retries):
++        try:
++            resp = requests.get(url, params=params, headers=headers, timeout=15)
++
++            if resp.status_code == 429:
++                # Rate limited — use reset header or exponential backoff
++                reset_time = resp.headers.get("x-rate-limit-reset")
++                if reset_time:
++                    wait_seconds = max(int(reset_time) - int(time.time()), 1)
++                    wait_seconds = min(wait_seconds, 60)  # Cap at 60s
++                else:
++                    wait_seconds = 2 ** (attempt + 1)
++                print(f"DEBUG: Twitter rate limited, waiting {wait_seconds}s (attempt {attempt + 1})")
++                time.sleep(wait_seconds)
++                continue
++
++            resp.raise_for_status()
++            return resp.json()
++
++        except requests.exceptions.HTTPError as e:
++            print(f"DEBUG: Twitter API HTTP error: {e}")
++            if resp.status_code in (401, 403):
++                print("DEBUG: Twitter auth error — check bearer token")
++                return None
++            if attempt < max_retries - 1:
++                time.sleep(2 ** (attempt + 1))
++                continue
++            return None
++        except requests.exceptions.RequestException as e:
++            print(f"DEBUG: Twitter API request error: {e}")
++            if attempt < max_retries - 1:
++                time.sleep(2 ** (attempt + 1))
++                continue
++            return None
++
++    return None
++
++
++def lookup_user(username: str, bearer_token: str) -> Optional[dict]:
++    """Resolve a Twitter username to user data including profile metrics."""
++    clean_username = username.lstrip("@").strip()
++    url = f"{TWITTER_API_BASE}/users/by/username/{clean_username}"
++    params = {"user.fields": USER_FIELDS}
++
++    data = _make_request(url, params, bearer_token)
++    if data and "data" in data:
++        return data["data"]
++
++    errors = data.get("errors", []) if data else []
++    if errors:
++        print(f"DEBUG: Twitter user lookup error: {errors[0].get('detail', 'unknown')}")
++    return None
++
++
++def fetch_user_tweets(user_id: str, count: int, bearer_token: str) -> List[dict]:
++    """Fetch recent tweets for a user by their Twitter ID."""
++    url = f"{TWITTER_API_BASE}/users/{user_id}/tweets"
++    params = {
++        "max_results": min(count, 100),  # API max is 100 per request
++        "tweet.fields": TWEET_FIELDS,
++    }
++
++    data = _make_request(url, params, bearer_token)
++    if data and "data" in data:
++        return data["data"]
++
++    return []
++
++
++def fetch_twitter_data(
++    handle: str,
++    num_posts: int = 10,
++    bearer_token: Optional[str] = None,
++) -> Optional[BriefingInput]:
++    """
++    Full Twitter data fetch: resolve user, get tweets, normalize via adapter.
++
++    Returns a BriefingInput ready for the analysis pipeline, or None on failure.
++    """
++    token = _get_bearer_token(bearer_token)
++    if not token:
++        print("DEBUG: No Twitter bearer token available")
++        return None
++
++    # Step 1: Look up user profile
++    user_data = lookup_user(handle, token)
++    if not user_data:
++        print(f"DEBUG: Could not find Twitter user: {handle}")
++        return None
++
++    user_id = user_data.get("id")
++    if not user_id:
++        return None
++
++    # Step 2: Fetch recent tweets
++    tweets = fetch_user_tweets(user_id, num_posts, token)
++    print(f"DEBUG: Fetched {len(tweets)} tweets for @{handle}")
++
++    # Step 3: Normalize via adapter
++    adapter = TwitterAdapter()
++    raw_data = {
++        "profile": user_data,
++        "posts": tweets,
++        "collection_period": {
++            "end": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
++        },
++        "data_source": "twitter_api_v2",
++    }
++    briefing_input = adapter.normalize(raw_data)
++
++    return briefing_input
++
++
++def briefing_input_to_articles(briefing_input: BriefingInput) -> List[Dict]:
++    """
++    Convert a BriefingInput into the article-like format expected by the pipeline.
++
++    This bridges the TwitterAdapter output into the same shape that fetch_articles()
++    returns, so the orchestrator can process both uniformly.
++    """
++    articles = []
++    for post in briefing_input.posts:
++        articles.append({
++            "title": post.text[:120] + ("..." if len(post.text) > 120 else ""),
++            "link": f"https://x.com/i/status/{post.post_id}" if post.post_id else "",
++            "snippet": post.text[:300],
++            "date": post.timestamp.isoformat() if post.timestamp else "",
++            "meta": {
++                "engagement": post.engagement,
++                "media_type": post.media_type,
++                "is_amplification": post.is_amplification,
++                "amplification_source": post.amplification_source,
++                "platform": "twitter",
++            },
++            "full_text": post.text,
++        })
++    return articles
+diff --git a/tests/test_api.py b/tests/test_api.py
+index 1b38c63..8f60290 100644
+--- a/tests/test_api.py
++++ b/tests/test_api.py
+@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
+ 
+ from src.cddbs.api.main import app
+ from src.cddbs.database import SessionLocal
+-from src.cddbs.models import Report, Outlet, Article
++from src.cddbs.models import Report, Outlet, Article, Briefing, NarrativeMatch
+ 
+ 
+ @pytest.fixture
+@@ -29,6 +29,8 @@ def db_session():
+ def cleanup_db(db_session):
+     """Clean up test data after each test."""
+     yield
++    db_session.query(NarrativeMatch).delete()
++    db_session.query(Briefing).delete()
+     db_session.query(Article).delete()
+     db_session.query(Report).delete()
+     db_session.query(Outlet).delete()
+@@ -101,8 +103,8 @@ def test_create_analysis_run_validation(client):
+     response = client.post("/analysis-runs", json=payload)
+     assert response.status_code == 422
+ 
+-    # Test missing required fields
+-    response = client.post("/analysis-runs", json={"outlet": "Test"})
++    # Test missing required field (outlet)
++    response = client.post("/analysis-runs", json={"url": "test.com", "country": "US"})
+     assert response.status_code == 422
+ 
+ 
+diff --git a/tests/test_batch.py b/tests/test_batch.py
+new file mode 100644
+index 0000000..a8a7660
+--- /dev/null
++++ b/tests/test_batch.py
+@@ -0,0 +1,133 @@
++"""Tests for batch analysis endpoints."""
++import pytest
++from fastapi.testclient import TestClient
++from sqlalchemy.orm import Session
++
++from src.cddbs.api.main import app
++from src.cddbs.database import SessionLocal
++from src.cddbs.models import Report, Batch, Outlet, Article, Briefing, NarrativeMatch
++
++
++@pytest.fixture
++def client():
++    return TestClient(app)
++
++
++@pytest.fixture
++def db_session():
++    db = SessionLocal()
++    try:
++        yield db
++    finally:
++        db.close()
++
++
++@pytest.fixture
++def cleanup_db(db_session):
++    yield
++    db_session.query(NarrativeMatch).delete()
++    db_session.query(Briefing).delete()
++    db_session.query(Article).delete()
++    db_session.query(Report).delete()
++    db_session.query(Batch).delete()
++    db_session.query(Outlet).delete()
++    db_session.commit()
++
++
++class TestBatchCreate:
++    """Tests for POST /analysis-runs/batch."""
++
++    def test_create_batch(self, client, db_session, cleanup_db, monkeypatch):
++        from src.cddbs.pipeline import orchestrator
++        monkeypatch.setattr(orchestrator, "run_pipeline", lambda *a, **kw: None)
++
++        payload = {
++            "name": "Test Batch",
++            "targets": [
++                {"outlet": "RT", "url": "rt.com", "country": "Russia"},
++                {"outlet": "BBC", "url": "bbc.com", "country": "UK"},
++            ],
++        }
++        response = client.post("/analysis-runs/batch", json=payload)
++        assert response.status_code == 200
++        data = response.json()
++        assert data["name"] == "Test Batch"
++        assert data["target_count"] == 2
++        assert len(data["report_ids"]) == 2
++        assert data["status"] == "running"
++
++    def test_batch_validates_max_size(self, client):
++        targets = [{"outlet": f"Outlet{i}", "country": "US"} for i in range(10)]
++        payload = {"targets": targets}
++        response = client.post("/analysis-runs/batch", json=payload)
++        # Should fail either from pydantic max_length=5 or BATCH_MAX_SIZE check
++        assert response.status_code in (400, 422)
++
++    def test_batch_requires_targets(self, client):
++        response = client.post("/analysis-runs/batch", json={"targets": []})
++        assert response.status_code == 422
++
++    def test_batch_creates_reports(self, client, db_session, cleanup_db, monkeypatch):
++        from src.cddbs.pipeline import orchestrator
++        monkeypatch.setattr(orchestrator, "run_pipeline", lambda *a, **kw: None)
++
++        payload = {
++            "targets": [
++                {"outlet": "CNN", "url": "cnn.com", "country": "US"},
++            ],
++        }
++        response = client.post("/analysis-runs/batch", json=payload)
++        data = response.json()
++
++        # Verify the report was created
++        report = db_session.query(Report).filter(Report.id == data["report_ids"][0]).first()
++        assert report is not None
++        assert report.outlet == "CNN"
++
++
++class TestBatchStatus:
++    """Tests for GET /analysis-runs/batch/{id}."""
++
++    def test_get_batch_status(self, client, db_session, cleanup_db):
++        batch = Batch(
++            name="Test",
++            status="running",
++            target_count=3,
++            completed_count=1,
++            failed_count=0,
++            report_ids=[1, 2, 3],
++        )
++        db_session.add(batch)
++        db_session.commit()
++
++        response = client.get(f"/analysis-runs/batch/{batch.id}")
++        assert response.status_code == 200
++        data = response.json()
++        assert data["target_count"] == 3
++        assert data["completed_count"] == 1
++        assert data["status"] == "running"
++
++    def test_batch_not_found(self, client):
++        response = client.get("/analysis-runs/batch/99999")
++        assert response.status_code == 404
++
++
++class TestBatchList:
++    """Tests for GET /batches."""
++
++    def test_list_batches(self, client, db_session, cleanup_db):
++        batch1 = Batch(name="Batch 1", status="completed", target_count=2, completed_count=2, report_ids=[])
++        batch2 = Batch(name="Batch 2", status="running", target_count=3, completed_count=1, report_ids=[])
++        db_session.add(batch1)
++        db_session.add(batch2)
++        db_session.commit()
++
++        response = client.get("/batches")
++        assert response.status_code == 200
++        data = response.json()
++        assert len(data) == 2
++
++    def test_list_batches_empty(self, client, db_session, cleanup_db):
++        response = client.get("/batches")
++        assert response.status_code == 200
++        assert response.json() == []
+diff --git a/tests/test_export.py b/tests/test_export.py
+new file mode 100644
+index 0000000..1797c9b
+--- /dev/null
++++ b/tests/test_export.py
+@@ -0,0 +1,167 @@
++"""Tests for export module and endpoints."""
++import json
++import pytest
++from datetime import datetime, UTC
++from fastapi.testclient import TestClient
++from sqlalchemy.orm import Session
++
++from src.cddbs.api.main import app
++from src.cddbs.database import SessionLocal
++from src.cddbs.models import Report, Briefing, NarrativeMatch, Article, Outlet
++from src.cddbs.export import export_json, export_csv
++
++
++@pytest.fixture
++def client():
++    return TestClient(app)
++
++
++@pytest.fixture
++def db_session():
++    db = SessionLocal()
++    try:
++        yield db
++    finally:
++        db.close()
++
++
++@pytest.fixture
++def cleanup_db(db_session):
++    yield
++    db_session.query(NarrativeMatch).delete()
++    db_session.query(Briefing).delete()
++    db_session.query(Article).delete()
++    db_session.query(Report).delete()
++    db_session.query(Outlet).delete()
++    db_session.commit()
++
++
++@pytest.fixture
++def sample_report(db_session):
++    """Create a full report with briefing, narratives, and articles."""
++    outlet = Outlet(name="ExportTestOutlet", url="test.com")
++    db_session.add(outlet)
++    db_session.commit()
++
++    report = Report(
++        outlet="ExportTestOutlet",
++        country="US",
++        final_report="# Test Report\n\nThis is a test intelligence briefing.",
++        data={"articles_analyzed": 2, "url": "test.com"},
++    )
++    db_session.add(report)
++    db_session.commit()
++
++    article = Article(
++        outlet_id=outlet.id,
++        report_id=report.id,
++        title="Test Article",
++        link="http://test.com/article",
++        snippet="Test snippet",
++        date="2025-01-01",
++    )
++    db_session.add(article)
++
++    briefing = Briefing(
++        report_id=report.id,
++        briefing_json={"test": True},
++        quality_score=55,
++        quality_rating="Good",
++        quality_details={"dimensions": {}},
++    )
++    db_session.add(briefing)
++
++    nm = NarrativeMatch(
++        report_id=report.id,
++        narrative_id="anti_nato_001",
++        narrative_name="NATO Expansion Threat",
++        category="anti_nato",
++        confidence="high",
++        matched_keywords=["nato", "expansion"],
++        match_count=5,
++    )
++    db_session.add(nm)
++    db_session.commit()
++    db_session.refresh(report)
++
++    return report
++
++
++class TestExportJson:
++    """Tests for JSON export."""
++
++    def test_json_export_structure(self, sample_report, db_session, cleanup_db):
++        briefing = db_session.query(Briefing).filter(Briefing.report_id == sample_report.id).first()
++        narratives = db_session.query(NarrativeMatch).filter(NarrativeMatch.report_id == sample_report.id).all()
++        articles = sample_report.articles
++
++        result = export_json(sample_report, briefing, narratives, articles)
++        data = json.loads(result)
++
++        assert "export_metadata" in data
++        assert data["export_metadata"]["format"] == "json"
++        assert data["export_metadata"]["system"] == "CDDBS"
++        assert data["report"]["outlet"] == "ExportTestOutlet"
++        assert data["quality"]["score"] == 55
++        assert data["quality"]["rating"] == "Good"
++        assert len(data["narratives"]) == 1
++        assert data["narratives"][0]["narrative_id"] == "anti_nato_001"
++        assert len(data["articles"]) == 1
++
++    def test_json_export_without_briefing(self, sample_report, db_session, cleanup_db):
++        result = export_json(sample_report, None, [], sample_report.articles)
++        data = json.loads(result)
++        assert data["quality"] is None
++        assert data["narratives"] == []
++
++
++class TestExportCsv:
++    """Tests for CSV export."""
++
++    def test_csv_export_contains_sections(self, sample_report, db_session, cleanup_db):
++        briefing = db_session.query(Briefing).filter(Briefing.report_id == sample_report.id).first()
++        narratives = db_session.query(NarrativeMatch).filter(NarrativeMatch.report_id == sample_report.id).all()
++
++        result = export_csv(sample_report, briefing, narratives, sample_report.articles)
++
++        assert "CDDBS Analysis Export" in result
++        assert "ExportTestOutlet" in result
++        assert "# Articles" in result
++        assert "Test Article" in result
++        assert "# Narrative Matches" in result
++        assert "anti_nato_001" in result
++
++    def test_csv_export_without_data(self, sample_report, db_session, cleanup_db):
++        result = export_csv(sample_report, None, [], [])
++        assert "ExportTestOutlet" in result
++
++
++class TestExportEndpoint:
++    """Tests for GET /analysis-runs/{id}/export."""
++
++    def test_json_export_endpoint(self, client, sample_report, cleanup_db):
++        response = client.get(f"/analysis-runs/{sample_report.id}/export?format=json")
++        assert response.status_code == 200
++        assert response.headers["content-type"] == "application/json"
++        data = json.loads(response.content)
++        assert data["report"]["outlet"] == "ExportTestOutlet"
++
++    def test_csv_export_endpoint(self, client, sample_report, cleanup_db):
++        response = client.get(f"/analysis-runs/{sample_report.id}/export?format=csv")
++        assert response.status_code == 200
++        assert "text/csv" in response.headers["content-type"]
++        assert "ExportTestOutlet" in response.text
++
++    def test_invalid_format(self, client, sample_report, cleanup_db):
++        response = client.get(f"/analysis-runs/{sample_report.id}/export?format=xml")
++        assert response.status_code == 400
++
++    def test_export_not_found(self, client):
++        response = client.get("/analysis-runs/99999/export?format=json")
++        assert response.status_code == 404
++
++    def test_default_format_is_json(self, client, sample_report, cleanup_db):
++        response = client.get(f"/analysis-runs/{sample_report.id}/export")
++        assert response.status_code == 200
++        data = json.loads(response.content)
++        assert data["export_metadata"]["format"] == "json"
+diff --git a/tests/test_metrics.py b/tests/test_metrics.py
+new file mode 100644
+index 0000000..718e10d
+--- /dev/null
++++ b/tests/test_metrics.py
+@@ -0,0 +1,124 @@
++"""Tests for metrics module and endpoint."""
++import pytest
++from fastapi.testclient import TestClient
++from sqlalchemy.orm import Session
++
++from src.cddbs.api.main import app
++from src.cddbs.database import SessionLocal
++from src.cddbs.models import Report, Briefing, NarrativeMatch, Outlet, Article
++from src.cddbs.metrics import compute_metrics
++
++
++@pytest.fixture
++def client():
++    return TestClient(app)
++
++
++@pytest.fixture
++def db_session():
++    db = SessionLocal()
++    try:
++        yield db
++    finally:
++        db.close()
++
++
++@pytest.fixture
++def cleanup_db(db_session):
++    yield
++    db_session.query(NarrativeMatch).delete()
++    db_session.query(Briefing).delete()
++    db_session.query(Article).delete()
++    db_session.query(Report).delete()
++    db_session.query(Outlet).delete()
++    db_session.commit()
++
++
++class TestComputeMetrics:
++    """Tests for the metrics computation."""
++
++    def test_empty_db_returns_zeros(self, db_session, cleanup_db):
++        result = compute_metrics(db_session)
++        assert result["total_runs"] == 0
++        assert result["success_rate"] == 0.0
++        assert result["avg_quality_score"] is None
++        assert result["total_narratives_detected"] == 0
++
++    def test_computes_status_breakdown(self, db_session, cleanup_db):
++        # Completed report
++        r1 = Report(outlet="A", country="US", final_report="Done", data={})
++        # Running report
++        r2 = Report(outlet="B", country="UK", final_report=None, data={})
++        # Failed report
++        r3 = Report(outlet="C", country="RU", final_report="X", data={"errors": ["fail"]})
++        db_session.add_all([r1, r2, r3])
++        db_session.commit()
++
++        result = compute_metrics(db_session)
++        assert result["total_runs"] == 3
++        assert result["completed"] == 1
++        assert result["running"] == 1
++        assert result["failed"] == 1
++        assert result["success_rate"] == pytest.approx(33.3, abs=0.1)
++
++    def test_computes_quality_metrics(self, db_session, cleanup_db):
++        r1 = Report(outlet="A", final_report="Done", data={})
++        r2 = Report(outlet="B", final_report="Done", data={})
++        db_session.add_all([r1, r2])
++        db_session.commit()
++
++        b1 = Briefing(report_id=r1.id, quality_score=60, quality_rating="Excellent")
++        b2 = Briefing(report_id=r2.id, quality_score=40, quality_rating="Acceptable")
++        db_session.add_all([b1, b2])
++        db_session.commit()
++
++        result = compute_metrics(db_session)
++        assert result["avg_quality_score"] == 50.0
++        assert result["quality_distribution"]["excellent"] == 1
++        assert result["quality_distribution"]["acceptable"] == 1
++
++    def test_counts_narrative_matches(self, db_session, cleanup_db):
++        r = Report(outlet="A", final_report="Done", data={})
++        db_session.add(r)
++        db_session.commit()
++
++        nm1 = NarrativeMatch(report_id=r.id, narrative_id="a", narrative_name="A")
++        nm2 = NarrativeMatch(report_id=r.id, narrative_id="b", narrative_name="B")
++        db_session.add_all([nm1, nm2])
++        db_session.commit()
++
++        result = compute_metrics(db_session)
++        assert result["total_narratives_detected"] == 2
++
++    def test_failure_reasons_capped(self, db_session, cleanup_db):
++        for i in range(15):
++            r = Report(outlet=f"O{i}", final_report="X", data={"errors": [f"Error {i}"]})
++            db_session.add(r)
++        db_session.commit()
++
++        result = compute_metrics(db_session)
++        assert len(result["failure_reasons"]) <= 10
++
++
++class TestMetricsEndpoint:
++    """Tests for GET /metrics."""
++
++    def test_metrics_endpoint(self, client, db_session, cleanup_db):
++        response = client.get("/metrics")
++        assert response.status_code == 200
++        data = response.json()
++        assert "total_runs" in data
++        assert "success_rate" in data
++        assert "quality_distribution" in data
++        assert "recent_24h" in data
++
++    def test_metrics_with_data(self, client, db_session, cleanup_db):
++        r = Report(outlet="Test", final_report="Report", data={})
++        db_session.add(r)
++        db_session.commit()
++
++        response = client.get("/metrics")
++        data = response.json()
++        assert data["total_runs"] == 1
++        assert data["completed"] == 1
++        assert data["success_rate"] == 100.0
+diff --git a/tests/test_twitter_client.py b/tests/test_twitter_client.py
+new file mode 100644
+index 0000000..e188797
+--- /dev/null
++++ b/tests/test_twitter_client.py
+@@ -0,0 +1,169 @@
++"""Tests for Twitter API v2 client."""
++import pytest
++from unittest.mock import patch, MagicMock
++from datetime import datetime
++
++from src.cddbs.pipeline.twitter_client import (
++    lookup_user,
++    fetch_user_tweets,
++    fetch_twitter_data,
++    briefing_input_to_articles,
++)
++from src.cddbs.adapters import BriefingInput, ProfileData, PostData
++
++
++class TestLookupUser:
++    """Tests for Twitter user lookup."""
++
++    @patch("src.cddbs.pipeline.twitter_client._make_request")
++    def test_lookup_returns_user_data(self, mock_request):
++        mock_request.return_value = {
++            "data": {
++                "id": "12345",
++                "username": "testuser",
++                "name": "Test User",
++                "public_metrics": {"followers_count": 1000},
++            }
++        }
++        result = lookup_user("testuser", "fake_token")
++        assert result is not None
++        assert result["id"] == "12345"
++        assert result["username"] == "testuser"
++
++    @patch("src.cddbs.pipeline.twitter_client._make_request")
++    def test_lookup_strips_at_sign(self, mock_request):
++        mock_request.return_value = {"data": {"id": "1", "username": "test"}}
++        lookup_user("@testuser", "fake_token")
++        call_url = mock_request.call_args[0][0]
++        assert "@" not in call_url
++
++    @patch("src.cddbs.pipeline.twitter_client._make_request")
++    def test_lookup_returns_none_on_not_found(self, mock_request):
++        mock_request.return_value = {"errors": [{"detail": "User not found"}]}
++        result = lookup_user("nonexistent", "fake_token")
++        assert result is None
++
++    @patch("src.cddbs.pipeline.twitter_client._make_request")
++    def test_lookup_returns_none_on_failure(self, mock_request):
++        mock_request.return_value = None
++        result = lookup_user("test", "fake_token")
++        assert result is None
++
++
++class TestFetchUserTweets:
++    """Tests for tweet fetching."""
++
++    @patch("src.cddbs.pipeline.twitter_client._make_request")
++    def test_fetch_returns_tweets(self, mock_request):
++        mock_request.return_value = {
++            "data": [
++                {"id": "1", "text": "Hello world"},
++                {"id": "2", "text": "Test tweet"},
++            ]
++        }
++        result = fetch_user_tweets("12345", 10, "fake_token")
++        assert len(result) == 2
++        assert result[0]["text"] == "Hello world"
++
++    @patch("src.cddbs.pipeline.twitter_client._make_request")
++    def test_fetch_returns_empty_on_failure(self, mock_request):
++        mock_request.return_value = None
++        result = fetch_user_tweets("12345", 10, "fake_token")
++        assert result == []
++
++    @patch("src.cddbs.pipeline.twitter_client._make_request")
++    def test_fetch_caps_at_100(self, mock_request):
++        mock_request.return_value = {"data": []}
++        fetch_user_tweets("12345", 200, "fake_token")
++        params = mock_request.call_args[0][1]
++        assert params["max_results"] == 100
++
++
++class TestFetchTwitterData:
++    """Tests for full Twitter data fetch pipeline."""
++
++    def test_returns_none_without_token(self):
++        result = fetch_twitter_data("testuser", bearer_token=None)
++        assert result is None
++
++    @patch("src.cddbs.pipeline.twitter_client.fetch_user_tweets")
++    @patch("src.cddbs.pipeline.twitter_client.lookup_user")
++    def test_returns_briefing_input(self, mock_lookup, mock_tweets):
++        mock_lookup.return_value = {
++            "id": "12345",
++            "username": "testuser",
++            "name": "Test User",
++            "description": "Test bio",
++            "public_metrics": {
++                "followers_count": 5000,
++                "following_count": 100,
++                "tweet_count": 10000,
++            },
++        }
++        mock_tweets.return_value = [
++            {
++                "id": "999",
++                "text": "Test tweet content",
++                "created_at": "2025-01-01T00:00:00Z",
++                "public_metrics": {"like_count": 10, "retweet_count": 5},
++            }
++        ]
++
++        result = fetch_twitter_data("testuser", num_posts=5, bearer_token="fake")
++        assert result is not None
++        assert isinstance(result, BriefingInput)
++        assert result.profile.handle == "@testuser"
++        assert result.profile.followers == 5000
++        assert len(result.posts) == 1
++
++    @patch("src.cddbs.pipeline.twitter_client.lookup_user")
++    def test_returns_none_user_not_found(self, mock_lookup):
++        mock_lookup.return_value = None
++        result = fetch_twitter_data("nonexistent", bearer_token="fake")
++        assert result is None
++
++
++class TestBriefingInputToArticles:
++    """Tests for converting BriefingInput to article format."""
++
++    def test_converts_posts_to_articles(self):
++        briefing = BriefingInput(
++            profile=ProfileData(handle="@test", platform="twitter"),
++            posts=[
++                PostData(
++                    post_id="123",
++                    text="This is a test tweet with some content",
++                    timestamp=datetime(2025, 1, 1),
++                    engagement={"likes": 10},
++                ),
++                PostData(
++                    post_id="456",
++                    text="Another tweet",
++                    timestamp=datetime(2025, 1, 2),
++                ),
++            ],
++        )
++
++        articles = briefing_input_to_articles(briefing)
++        assert len(articles) == 2
++        assert "test tweet" in articles[0]["title"]
++        assert articles[0]["link"] == "https://x.com/i/status/123"
++        assert articles[0]["full_text"] == "This is a test tweet with some content"
++        assert articles[0]["meta"]["platform"] == "twitter"
++
++    def test_truncates_long_titles(self):
++        long_text = "x" * 200
++        briefing = BriefingInput(
++            profile=ProfileData(handle="@test", platform="twitter"),
++            posts=[PostData(post_id="1", text=long_text, timestamp=datetime.min)],
++        )
++        articles = briefing_input_to_articles(briefing)
++        assert len(articles[0]["title"]) <= 123  # 120 + "..."
++
++    def test_empty_posts(self):
++        briefing = BriefingInput(
++            profile=ProfileData(handle="@test", platform="twitter"),
++            posts=[],
++        )
++        articles = briefing_input_to_articles(briefing)
++        assert articles == []

@@ -1,0 +1,153 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install jsonschema nbformat pytest
+
+      - name: Run test suite
+        run: |
+          python -m pytest tests/ -v
+
+      - name: Run quality scorer on all fixtures
+        run: |
+          python -m tools.quality_scorer --fixtures
+
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install jsonschema nbformat
+
+      - name: Validate all JSON files
+        run: |
+          python -c "
+          import json, sys, glob
+          errors = 0
+          for pattern in ['schemas/*.json', 'data/*.json', 'tests/fixtures/*.json']:
+              for f in glob.glob(pattern):
+                  try:
+                      with open(f) as fh:
+                          json.load(fh)
+                      print(f'OK: {f}')
+                  except json.JSONDecodeError as e:
+                      print(f'FAIL: {f} - {e}')
+                      errors += 1
+          sys.exit(errors)
+          "
+
+      - name: Validate Jupyter notebooks
+        run: |
+          python -c "
+          import nbformat, sys, glob
+          errors = 0
+          for f in glob.glob('research/*.ipynb'):
+              try:
+                  with open(f) as fh:
+                      nbformat.read(fh, as_version=4)
+                  print(f'OK: {f}')
+              except Exception as e:
+                  print(f'FAIL: {f} - {e}')
+                  errors += 1
+          sys.exit(errors)
+          "
+
+      - name: Validate briefing schema structure
+        run: |
+          python -c "
+          import json
+          from jsonschema import Draft7Validator
+
+          with open('schemas/briefing_v1.json') as f:
+              schema = json.load(f)
+
+          Draft7Validator.check_schema(schema)
+          print('Schema is valid JSON Schema Draft 7')
+
+          required_top = schema.get('required', [])
+          expected = ['metadata', 'executive_summary', 'key_findings', 'subject_profile', 'confidence_assessment', 'limitations', 'methodology']
+          for field in expected:
+              assert field in required_top, f'Missing required field: {field}'
+              print(f'OK: required field \"{field}\" present')
+
+          print('All schema validations passed')
+          "
+
+      - name: Validate narrative dataset
+        run: |
+          python -c "
+          import json
+          with open('data/known_narratives.json') as f:
+              data = json.load(f)
+          cats = data['categories']
+          total = sum(len(c['narratives']) for c in cats)
+          print(f'Narrative dataset: {len(cats)} categories, {total} narratives')
+          assert total >= 15, f'Too few narratives: {total}'
+          for cat in cats:
+              for narr in cat['narratives']:
+                  assert 'keywords' in narr and len(narr['keywords']) >= 3, f'Narrative {narr[\"id\"]} missing keywords'
+          print('Narrative dataset validation passed')
+          "
+
+  markdown-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check key files exist
+        run: |
+          for f in README.md templates/intelligence_briefing.md docs/sprint_1_quickstart.md docs/cddbs_execution_plan.md docs/sprint_2_backlog.md docs/sprint_3_backlog.md; do
+            if [ -f "$f" ]; then
+              echo "OK: $f exists"
+            else
+              echo "MISSING: $f"
+              exit 1
+            fi
+          done
+
+      - name: Check for broken internal links
+        run: |
+          python3 -c "
+          import re, os, sys
+          errors = 0
+          for root, dirs, files in os.walk('.'):
+              for fname in files:
+                  if not fname.endswith('.md'):
+                      continue
+                  fpath = os.path.join(root, fname)
+                  with open(fpath) as f:
+                      content = f.read()
+                  links = re.findall(r'\[.*?\]\(((?!http)[^)]+)\)', content)
+                  for link in links:
+                      target = os.path.normpath(os.path.join(root, link))
+                      if not os.path.exists(target):
+                          print(f'BROKEN: {fpath} -> {link}')
+                          errors += 1
+                      else:
+                          print(f'OK: {fpath} -> {link}')
+          sys.exit(errors)
+          "
