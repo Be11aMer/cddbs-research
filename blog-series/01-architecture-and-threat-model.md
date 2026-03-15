@@ -8,7 +8,7 @@ series: "Building CDDBS"
 
 ## What is CDDBS?
 
-CDDBS — the Counter-Disinformation Database Briefing System — is an open-source intelligence analysis platform that detects disinformation narratives in media outlets and social media accounts. It ingests articles from the web, runs them through a structured LLM analysis pipeline, scores the output for quality, and matches it against a database of 18 known disinformation narratives.
+CDDBS — the Cyber Disinformation Detection Briefing System — is an open-source intelligence analysis platform that detects disinformation narratives in media outlets and social media accounts. It ingests articles from the web, runs them through a structured LLM analysis pipeline, scores the output for quality, and matches it against a database of 18 known disinformation narratives.
 
 The result is a professional intelligence briefing — the kind an analyst at a think tank or government agency would write — produced in under a minute.
 
@@ -135,4 +135,4 @@ Each post will include real code, real data flows, and real architectural trade-
 
 ---
 
-*CDDBS is open source. The production app is at [github.com/Be11aMer/cddbs-prod](https://github.com/Be11aMer/cddbs-prod) and the research repository is at [github.com/Be11aMer/cddbs-research-draft](https://github.com/Be11aMer/cddbs-research-draft).*
+*CDDBS is open source: production repository is at [github.com/Be11aMer/cddbs-prod](https://github.com/Be11aMer/cddbs-prod) and the research repository is at [github.com/Be11aMer/cddbs-research](https://github.com/Be11aMer/cddbs-research).*
