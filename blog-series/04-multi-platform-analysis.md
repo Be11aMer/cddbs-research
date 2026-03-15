@@ -314,11 +314,11 @@ With multi-platform support, CDDBS can address several analysis patterns:
 
 Transparency about limitations:
 
-**Telegram Bot API integration is interface-only.** The adapter exists and normalizes data correctly (22 tests prove it), but there's no live Telegram client yet. The MTProto protocol is complex, and the Bot API has its own rate limiting quirks. This is planned for Sprint 6.
+**Telegram live integration shipped in Sprint 6.** What started as an interface-only adapter is now wired into the live pipeline via `POST /analysis-runs/telegram`. The endpoint accepts a Telegram channel handle and routes it through `TelegramAdapter` in the orchestrator using the Telegram Bot API. The adapter tests (22 tests) cover normalization and forwarding chain attribution; the live endpoint handles channel lookups and message retrieval.
 
 **Cross-platform identity linking is manual.** The research framework defines 8 signals for linking accounts across platforms (shared URLs, similar bios, posting timing, content overlap, etc.), but automated correlation isn't implemented. An analyst has to manually run analyses on suspected linked accounts and compare the results.
 
-**No real-time streaming.** Both Twitter and Telegram offer streaming APIs for real-time data. CDDBS currently operates in batch mode — you request an analysis, it fetches recent data, and gives you a report. Continuous monitoring is a future capability.
+**No real-time streaming.** Both Twitter and Telegram offer streaming APIs for real-time data. CDDBS currently operates in batch mode — you request an analysis, it fetches recent data, and gives you a report. The Sprint 6 RSS/GDELT ingestion pipeline runs on a schedule (every 3–5 minutes), which is the closest thing to near-real-time monitoring available today. Full streaming is a future capability.
 
 ## The Adapter Test Suite
 

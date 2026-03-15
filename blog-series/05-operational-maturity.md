@@ -52,11 +52,15 @@ The trade-off is that querying "all reports in batch X" requires a JSON contains
 
 ### Execution Model
 
-Each target in a batch gets its own background thread:
+Each target in a batch gets its own FastAPI `BackgroundTask`:
 
 ```python
 @app.post("/analysis-runs/batch")
-def create_batch(request: BatchCreateRequest, db=Depends(get_db)):
+def create_batch(
+    request: BatchCreateRequest,
+    background_tasks: BackgroundTasks,
+    db=Depends(get_db),
+):
     batch = Batch(
         name=request.name,
         status="running",
@@ -74,13 +78,13 @@ def create_batch(request: BatchCreateRequest, db=Depends(get_db)):
         batch.report_ids = batch.report_ids + [report.id]
         db.commit()
 
-        thread = threading.Thread(
-            target=_run_analysis_job,
-            args=(report.id, target.outlet, target.country, ...),
-            kwargs={"batch_id": batch.id},
-            daemon=True
+        background_tasks.add_task(
+            _run_analysis_job,
+            report_id=report.id,
+            outlet=target.outlet,
+            country=target.country,
+            batch_id=batch.id,
         )
-        thread.start()
 
     return {"batch_id": batch.id, "target_count": len(request.targets)}
 ```
@@ -119,9 +123,9 @@ GET /analysis-runs/batch/7
 }
 ```
 
-### Why Threads, Not a Task Queue?
+### Why BackgroundTasks, Not a Task Queue?
 
-Same reasoning as the single-analysis pipeline: cost discipline. A proper task queue (Celery + Redis) requires two additional services. For batches capped at 5 targets on Render's free tier, Python threads with daemon mode are adequate. The `BATCH_MAX_SIZE` config (default 5) prevents resource exhaustion.
+Same reasoning as the single-analysis pipeline: cost discipline. A proper task queue (Celery + Redis) requires two additional services. FastAPI's `BackgroundTasks` runs jobs in-process after the response is returned — zero extra infrastructure. For batches capped at 5 targets on Render's free tier, this is entirely adequate. The `BATCH_MAX_SIZE` config (default 5) prevents resource exhaustion.
 
 ## Export Pipeline
 
@@ -478,38 +482,39 @@ def test_export_json_without_quality(db, report):
 
 ## The Full Picture
 
-After five sprints, here's where CDDBS stands:
+After five sprints of operational maturity work (six total in the series), here's where CDDBS stands after Sprint 6:
 
 | Metric | Value |
 |--------|-------|
-| Database tables | 7 |
-| API endpoints | 17 |
-| Tests passing | 169 |
-| External dependencies added (Sprints 4-5) | 0 required, 1 optional |
-| Lines of backend code | ~2,500 |
+| Database tables | 12 |
+| API endpoints | 34 |
+| Tests passing | 142 |
+| External dependencies added (Sprints 4-6) | feedparser, httpx, scikit-learn, scipy (+ optional: reportlab) |
+| Lines of backend code | ~4,000 |
 | Frontend components | 15 |
 
-The system handles the full lifecycle: ingest data from news or social media, analyze it with a constrained LLM, score the output for structural quality, match against known disinformation narratives, export results in three formats, and track operational health over time.
+The system handles the full lifecycle: ingest data from news, social media, RSS, and GDELT; analyze with a constrained LLM; score output for structural quality; match against known disinformation narratives; export results in three formats; track operational health over time; and fire webhook alerts to external subscribers.
 
 ## What's Next for CDDBS
 
-The immediate roadmap:
+Sprint 6 delivered the event intelligence pipeline — multi-source ingestion (RSS + GDELT), TF-IDF deduplication, and webhook alerting (covered in Part 6 of this series). The immediate roadmap ahead:
 
-- **Sprint 6**: Telegram Bot API live integration, frontend metrics dashboard, webhook alerting for failure spikes.
-- **Sprint 7-8**: User authentication, shared analysis workspaces, trend detection over time.
-- **Sprint 9+**: ML-based narrative matching (to complement keyword matching), automated monitoring schedules, multi-language support.
+- **Sprint 7**: Event clustering (TF-IDF agglomerative), Z-score burst detection for narrative spikes, `EventClusterPanel` and `BurstTimeline` frontend components.
+- **Sprint 8**: User authentication, shared analysis workspaces, automated monitoring schedules.
+- **Sprint 9+**: ML-based narrative matching (to complement keyword matching), multi-language support, sentence-transformer upgrade for semantic deduplication.
 
 The long-term vision is a system where an analyst can set up continuous monitoring of 20+ outlets and social media accounts, get alerted when narrative patterns shift, and produce briefings that meet professional intelligence community standards — all powered by LLMs constrained to be honest about what they know and don't know.
 
 ## Series Recap
 
-This five-part series covered:
+This series has covered:
 
 1. **Architecture & Threat Model** — What CDDBS is, the 18 narratives it tracks, and the three-tier architecture.
 2. **The Analysis Pipeline** — Article fetch, prompt construction, LLM call, response parsing, and the async execution model.
 3. **Quality Scoring & Narrative Detection** — The 7-dimension rubric, keyword-based narrative matching, and why we evaluate structure instead of truth.
 4. **Multi-Platform Analysis** — Twitter and Telegram adapters, platform routing, and the common `BriefingInput` format.
-5. **Operational Maturity** — Batch analysis, export formats, metrics, and production engineering.
+5. **Operational Maturity** — Batch analysis, export formats, metrics, and production engineering (this post).
+6. **Event Intelligence at Scale** — Sprint 6: RSS + GDELT ingestion, TF-IDF deduplication, webhook alerting.
 
 The common thread: **constrain the LLM, verify the output, degrade gracefully.** LLMs are powerful synthesis engines, but they need guardrails — structured prompts, typed evidence, quality rubrics, and narrative databases — to produce output that analysts can trust. Building those guardrails is the actual engineering challenge. The LLM call itself is one line of code.
 

@@ -12,7 +12,7 @@ CDDBS — the Cyber Disinformation Detection Briefing System — is an open-sour
 
 The result is a professional intelligence briefing — the kind an analyst at a think tank or government agency would write — produced in under a minute.
 
-This is the first post in a series where I'll walk through the technical architecture, the pipeline internals, the quality assurance system, and the operational infrastructure behind it. This isn't a weekend project write-up. CDDBS has been through five development sprints, 169 tests, and a production deployment on Render. The goal of this series is to show how the pieces fit together — and why we made the decisions we did.
+TThis is the first post in a series where I'll walk through the technical architecture, the pipeline internals, the quality assurance system, and the operational infrastructure behind it. This isn't a weekend project write-up. CDDBS has been through six development sprints, 142 tests, and a production deployment on Render. The goal of this series is to show how the pieces fit together — and why we made the decisions we did.
 
 ## The Problem We're Solving
 
@@ -61,7 +61,7 @@ CDDBS is a three-tier application:
 └──────────────┬──────────────┘
                │
 ┌──────────────▼──────────────┐
-│   PostgreSQL (7 tables)      │
+│   PostgreSQL (12 tables)     │
 │   Neon managed (production)  │
 └─────────────────────────────┘
                │
@@ -71,7 +71,7 @@ CDDBS is a three-tier application:
  (article fetch)      (LLM analysis)
 ```
 
-The backend is a FastAPI application with 17 endpoints. The frontend is a React SPA with Redux Toolkit for state and TanStack React Query for data fetching. PostgreSQL stores everything — reports, articles, quality scores, narrative matches, and tester feedback.
+The backend is a FastAPI application with 34 endpoints. The frontend is a React SPA with Redux Toolkit for state and TanStack React Query for data fetching. PostgreSQL stores everything — reports, articles, quality scores, narrative matches, and tester feedback.
 
 ### The BYOK Model
 
@@ -104,7 +104,7 @@ Stages 4 and 5 — quality scoring and narrative matching — are wrapped in `tr
 
 ## Database Schema
 
-Seven tables store the full lifecycle of an analysis:
+Twelve tables store the full lifecycle of an analysis — from article ingestion to briefing delivery and webhook alerting:
 
 ```
 outlets ──< articles >── reports ──< narrative_matches
@@ -112,6 +112,13 @@ outlets ──< articles >── reports ──< narrative_matches
                             ├── briefings (1:1)
                             │
 batches ─────────────────── ┘ (via report_ids JSON)
+
+topic_runs ──< topic_outlet_results
+
+raw_articles (multi-source ingestion)
+event_clusters (Sprint 6+)
+narrative_bursts (Sprint 6+)
+webhook_configs
 
 feedback (standalone)
 ```
@@ -122,6 +129,8 @@ Narrative matches are stored as individual rows — one per detected narrative p
 
 The `Batch` model (added in Sprint 5) groups multiple reports under a single analysis request. It tracks progress with `completed_count` and `failed_count` fields, and stores linked report IDs in a JSON column.
 
+Sprint 6 added four more tables: `raw_articles` (multi-source feed ingestion from RSS and GDELT), `event_clusters` and `narrative_bursts` (for event intelligence, populated in Sprint 7+), and `webhook_configs` (for outbound alerting via HMAC-signed webhooks).
+
 ## What's Coming in This Series
 
 This post covered the *what* and *why*. The next posts go deep on the *how*:
@@ -130,6 +139,7 @@ This post covered the *what* and *why*. The next posts go deep on the *how*:
 - **Part 3**: The 7-dimension quality rubric — how we score LLM output without using another LLM.
 - **Part 4**: Multi-platform analysis — how Twitter API v2 and Telegram adapters normalize heterogeneous data into a common format.
 - **Part 5**: Operational maturity — batch analysis, export formats, metrics, and what it takes to go from "it works on my machine" to "it works in production."
+- **Part 6**: Event intelligence at scale — the Sprint 6 multi-source ingestion pipeline (RSS + GDELT), TF-IDF deduplication, and webhook alerting.
 
 Each post will include real code, real data flows, and real architectural trade-offs. If you're building LLM-powered analysis tools — or any system where LLM output quality matters — the patterns here apply well beyond disinformation detection.
 

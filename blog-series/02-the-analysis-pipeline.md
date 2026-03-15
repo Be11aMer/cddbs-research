@@ -18,22 +18,40 @@ When a user requests an analysis of a media outlet, the first thing we need is c
 
 ```python
 # src/cddbs/pipeline/fetch.py (simplified)
+
+# Map short date_filter codes to Google News 'when:' query values
+_WHEN_MAP = {
+    "h": "1h",
+    "d": "1d",
+    "w": "7d",
+    "m": "30d",
+    "y": "1y",
+}
+
 def fetch_articles(outlet, country, num_articles=3, url=None,
                    api_key=None, time_period=None):
     if not api_key:
         return generate_mock_articles(outlet)
 
+    query = f'"{outlet}"'
+    if url:
+        clean_url = url.replace("https://", "").replace("http://", "").split("/")[0]
+        query = f'"{outlet}" site:{clean_url}'
+
+    # google_news engine does NOT support the tbs parameter.
+    # Date filtering must be done via 'when:' operator in the query string.
+    if time_period:
+        when_value = _WHEN_MAP.get(time_period, time_period)
+        query = f"{query} when:{when_value}"
+
     params = {
         "engine": "google_news",
-        "q": f'"{outlet}"' + (f" site:{url}" if url else ""),
+        "q": query,
         "gl": normalize_country(country),
-        "num": num_articles
+        "api_key": api_key,
     }
 
-    if time_period:
-        params["tbs"] = f"qdr:{time_period}"
-
-    search = GoogleSearch({**params, "api_key": api_key})
+    search = GoogleSearch(params)
     results = search.get_dict()
     return results.get("news_results", [])
 ```
@@ -42,9 +60,9 @@ A few things to note:
 
 **Country normalization.** SerpAPI expects ISO country codes (`us`, `ru`, `gb`), but users type "Russia" or "United States." The `normalize_country()` function maps natural language country names to their codes. Small detail, large UX impact.
 
-**Date filtering.** The `tbs=qdr:{period}` parameter filters by recency — `h` for last hour, `d` for day, `w` for week. This matters because disinformation campaigns often intensify around specific events. An analyst tracking a narrative spike needs yesterday's articles, not last month's.
+**Date filtering.** The SerpAPI `google_news` engine does **not** support the `tbs` parameter. Passing `tbs=qdr:d` silently fails — articles come back unfiltered. The correct approach is the `when:` query operator embedded directly in the search string: `when:1d` for last 24 hours, `when:7d` for last week. We discovered this through silent failures in early testing and patched it in production. This matters because disinformation campaigns often intensify around specific events — an analyst tracking a narrative spike needs yesterday's articles, not last month's.
 
-**Mock fallback.** When no API key is configured, the system generates mock articles rather than crashing. This is critical for local development and testing — you don't want your 169 tests to require a live SerpAPI key.
+**Mock fallback.** When no API key is configured, the system generates mock articles rather than crashing. This is critical for local development and testing — you don't want your 142 tests to require a live SerpAPI key.
 
 ## Stage 2: Prompt Construction
 
@@ -258,24 +276,29 @@ The narrative matcher reads the full report text, scans for keyword hits across 
 
 ## The Async Execution Model
 
-The entire pipeline runs in a background thread:
+The entire pipeline runs as a FastAPI background task:
 
 ```python
 @app.post("/analysis-runs")
-def create_analysis_run(request: RunCreateRequest, db=Depends(get_db)):
+def create_analysis_run(
+    request: RunCreateRequest,
+    background_tasks: BackgroundTasks,
+    db=Depends(get_db),
+):
     # Create placeholder report
     report = Report(outlet=request.outlet, country=request.country)
     report.data = {"status": "queued"}
     db.add(report)
     db.commit()
 
-    # Launch pipeline in background
-    thread = threading.Thread(
-        target=_run_analysis_job,
-        args=(report.id, request.outlet, request.country, ...),
-        daemon=True
+    # Schedule pipeline as a background task
+    background_tasks.add_task(
+        _run_analysis_job,
+        report_id=report.id,
+        outlet=request.outlet,
+        country=request.country,
+        # ... other params
     )
-    thread.start()
 
     return {"id": report.id, "status": "queued"}
 ```
@@ -296,7 +319,7 @@ const { data: run } = useQuery({
 });
 ```
 
-Why threads instead of Celery? Cost discipline. Celery requires a message broker (Redis or RabbitMQ), which means another service to deploy and pay for. For our throughput (single-digit concurrent analyses on Render free tier), Python threads are fine. If CDDBS needed to handle hundreds of concurrent analyses, we'd switch to a proper task queue. Until then, the simplest solution that works is the right one.
+Why FastAPI `BackgroundTasks` instead of Celery? Cost discipline. Celery requires a message broker (Redis or RabbitMQ), which means another service to deploy and pay for. FastAPI's built-in `BackgroundTasks` runs the job in the same process after the HTTP response is sent — zero extra infrastructure. For our throughput (single-digit concurrent analyses on Render free tier), this is entirely adequate. If CDDBS needed to handle hundreds of concurrent analyses, we'd switch to a proper task queue. Until then, the simplest solution that works is the right one.
 
 ## Platform Routing
 
