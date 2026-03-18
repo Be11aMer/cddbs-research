@@ -1,8 +1,9 @@
 # CDDBS Execution Plan
 
-**Project**: Counter-Disinformation Database System (CDDBS)
+**Project**: Cyber Disinformation Detection Briefing System (CDDBS)
 **Start Date**: February 3, 2026
 **Delivery Model**: 2-week sprints
+**Last Updated**: 2026-03-18
 
 ---
 
@@ -22,6 +23,7 @@ CDDBS is a system for analyzing media outlets and social media accounts for pote
 - Created JSON schema (draft-07) for structured output
 - System prompt v1.1 with confidence framework and attribution standards
 - Frontend mockup with sample RT analysis
+- **Compliance**: BYOK architecture, confidence framework, AI labeling, .gitignore for secrets
 
 ### Sprint 2: Quality & Reliability (Feb 17 - Mar 2, 2026) — COMPLETE
 **Target**: v1.2.0 | **Status**: Done
@@ -31,6 +33,7 @@ CDDBS is a system for analyzing media outlets and social media accounts for pote
 - Source verification framework for 5 evidence types
 - 41 tests (schema validation + quality scoring)
 - System prompt v1.2 with narrative detection + self-validation
+- **Compliance**: Deterministic quality rubric (independent of AI), automated testing
 
 ### Sprint 3: Multi-Platform Support (Mar 3-16, 2026) — COMPLETE
 **Target**: v1.3.0 | **Status**: Done
@@ -43,6 +46,7 @@ CDDBS is a system for analyzing media outlets and social media accounts for pote
 - System prompt v1.3 (multi-platform aware)
 - API rate limiting design (Twitter v2 + Telegram MTProto)
 - 80 tests total (39 new)
+- **Compliance**: Data normalization via adapters, rate limiting respect
 
 ### Sprint 4: Production Integration (Mar 1-3, 2026) — COMPLETE
 **Target**: v1.4.0 | **Status**: Done
@@ -56,37 +60,66 @@ CDDBS is a system for analyzing media outlets and social media accounts for pote
 - Dashboard metrics: Avg Quality + Narratives Detected
 - Unplanned: Feedback system, keyboard shortcuts, cold start handling, skeleton loading
 - 56 new tests in production (quality: 23, adapters: 22, narratives: 11)
+- **Compliance**: Controlled research→prod transfer, analyst feedback loop
 
-### Sprint 5: Operational Maturity & Data Ingestion (Mar 3-16, 2026)
-**Target**: v1.5.0 | **Status**: In Progress
+### Sprint 5: Operational Maturity & Data Ingestion (Mar 3-16, 2026) — COMPLETE
+**Target**: v1.5.0 | **Status**: Done
 
 - Twitter API v2 integration (direct account analysis via platform adapter)
 - Batch analysis support (multiple outlets in single request)
 - Export formats (PDF, JSON, CSV)
-- End-to-end integration tests with real API validation
-- Analysis monitoring and alerting infrastructure
-- Network graph visualization in frontend
+- Operational metrics endpoint (`GET /metrics`)
+- Developer documentation (812-line DEVELOPER.md)
+- Platform routing in orchestrator (news/twitter with fallback)
+- 169 tests total (35 new)
+- **Compliance**: Export for auditing, operational metrics, comprehensive documentation
 - See [docs/sprint_5_backlog.md](sprint_5_backlog.md) for details
 
-### Sprint 6: Scale & Analytics (Mar 17-30, 2026)
-**Target**: v1.6.0
+### Sprint 6: Scale, Analytics & Event Intelligence (Mar 14-18, 2026) — COMPLETE
+**Target**: v1.6.0 | **Status**: Done
 
-- Telegram Bot API integration (wire TelegramAdapter into pipeline)
-- Trend detection (quality and narrative trends over time)
-- Webhook alerting (Slack/email on failure spikes)
-- Performance optimization at scale
+- Event Intelligence Pipeline: RSS (15 feeds) + GDELT Doc API v2 collectors
+- BaseCollector ABC + CollectorManager with async scheduling
+- URL deduplication (SHA-256) + Title deduplication (TF-IDF cosine similarity)
+- Telegram Bot API integration (wired into pipeline)
+- Quality and narrative trend endpoints
+- Webhook alerting (HMAC-SHA256 signing, auto-disable)
+- CI compliance pipeline: secret scanning, documentation drift detection, branch policy enforcement
+- Open-source hardening: CODEOWNERS, SECURITY.md, CONTRIBUTING.md, LICENSE, TROUBLESHOOTING.md
+- ~197 tests total (25 new)
+- **Compliance**: Major compliance sprint — secret scanning CI, docs drift detection, branch policy, SECURITY.md, CODEOWNERS
+- See [docs/sprint_6_backlog.md](sprint_6_backlog.md) for details
 
-### Sprints 7-8: Collaborative Features (Apr 2026)
+### Sprint 7: Intelligence Layer & Compliance Hardening (Apr 1-14, 2026) — CURRENT
+**Target**: v1.7.0 | **Status**: Planning
+
+- TF-IDF event clustering pipeline (agglomerative clustering)
+- Z-score burst detection on keyword frequency
+- Narrative risk scoring (4-signal composite: source concentration, burst magnitude, timing sync, narrative match)
+- `/events` API endpoints (list, detail, map, bursts)
+- Frontend: EventClusterPanel, BurstTimeline, EventDetailDialog
+- Enhanced GlobalMap with event cluster markers
+- Compliance practices documentation (DSGVO, CRA, EU AI Act)
+- Recursive completeness audit (verify all Sprint 7 work implemented, tested, documented)
+- Vision alignment check (Sprints 1-7 against project mission)
+- **Compliance**: Full compliance documentation folder, recursive audit, vision alignment verification
+- See [docs/sprint_7_backlog.md](sprint_7_backlog.md) for details
+
+### Sprint 8: Collaborative Features & SBOM (Apr-May 2026)
 - User authentication and authorization
 - Shared analysis workspaces
 - Analyst annotations and comments on briefings
-- Documentation and onboarding
+- Formal SBOM generation in CI (CycloneDX/SPDX)
+- Automated dependency vulnerability scanning
+- User-facing AI disclosure in frontend UI
 
 ### Sprints 9-12: Advanced Features (May-Jul 2026)
 - Machine learning model fine-tuning
 - Automated monitoring schedules
 - API for third-party integration
 - Multi-language support
+- NetworkGraph.tsx production implementation
+- Currents API collector integration
 
 ---
 
@@ -113,27 +146,33 @@ Demonstrates resilience, digital sovereignty, access equity, and privacy-preserv
 
 ## Architecture
 
-### Current Stack (as of v1.4.0)
+### Current Stack (as of v1.6.0)
 - **Backend**: FastAPI + uvicorn on Render (Docker)
 - **Frontend**: React 18 + TypeScript + MUI 6 + Vite on Render (Nginx)
-- **Database**: PostgreSQL 15 (Neon managed, 6 tables)
+- **Database**: PostgreSQL 15 (Neon managed, 12 tables)
 - **LLM**: Google Gemini 2.5 Flash via google-genai SDK
-- **Data Sources**: SerpAPI Google News (Twitter API v2 planned for v1.5.0)
-- **Source Code**: GitHub (cddbs-prod + cddbs-research-draft)
+- **Data Sources**: SerpAPI Google News, Twitter API v2, GDELT Doc API v2, RSS (15 feeds)
+- **Source Code**: GitHub (cddbs-prod + cddbs-research)
 
-### Achieved Architecture (v1.4.0)
+### Achieved Architecture (v1.6.0)
 - Structured briefing output validated against JSON Schema v1.2
 - 7-dimension quality scoring pipeline (70-point rubric)
-- Narrative detection against 18 known disinformation narratives
-- Platform adapters for Twitter + Telegram (Twitter integration in v1.5.0)
+- Narrative detection against 50+ known disinformation narratives
+- Platform adapters for Twitter + Telegram (both wired into pipeline)
+- Multi-source event intelligence pipeline (RSS + GDELT)
+- URL + title deduplication (SHA-256 + TF-IDF cosine)
+- Webhook alerting with HMAC-SHA256 signing
+- CI compliance pipeline (secret scan, docs drift, branch policy)
 - Background task processing with auto-polling frontend
+- Batch analysis and export (JSON/CSV/PDF)
+- Operational metrics and trend endpoints
 
-### Target Architecture (v1.6.0+)
-- Multi-platform data ingestion (Twitter API v2 + Telegram Bot API)
-- Batch analysis for multiple targets
-- Export pipeline (PDF/JSON/CSV)
-- Network graph visualization
-- Monitoring and alerting infrastructure
+### Target Architecture (v1.7.0+)
+- Event clustering and burst detection (Sprint 7)
+- Narrative risk scoring composite (Sprint 7)
+- Events API and frontend visualization (Sprint 7)
+- User authentication (Sprint 8)
+- SBOM and vulnerability scanning (Sprint 8)
 
 ---
 
@@ -144,3 +183,42 @@ Demonstrates resilience, digital sovereignty, access equity, and privacy-preserv
 3. **Reproducibility** - Analyses should be reproducible with the same inputs
 4. **Professional standards** - Output should meet intelligence community standards
 5. **Cost discipline** - Stay within free/low-cost tier limits
+6. **Compliance by design** - EU regulatory requirements (DSGVO, CRA, EU AI Act) addressed through engineering practices, not afterthought
+
+---
+
+## Branching Policy
+
+| Repository | Branch Policy |
+|-----------|---------------|
+| `cddbs-prod` | Feature branches from `development` → merge to `development` → merge to `main` |
+| `cddbs-research` | Feature branches from `main` → merge to `main` |
+
+Production code flows through the `development` branch as a staging/integration area before reaching `main`. This is enforced by CI (`branch-policy.yml`).
+
+---
+
+## Vision Alignment Check (as of Sprint 7 Planning)
+
+| Sprint | Contribution to Vision | On Track? |
+|--------|----------------------|-----------|
+| 1 | Briefing format — core intelligence output | Yes |
+| 2 | Quality scoring — reliability of AI analysis | Yes |
+| 3 | Multi-platform — broader disinformation coverage | Yes |
+| 4 | Production integration — making research usable | Yes |
+| 5 | Operational maturity — production-grade features | Yes |
+| 6 | Event intelligence — proactive monitoring capability | Yes |
+| 7 | Intelligence layer — automated event detection | Yes |
+
+**Drift assessment**: No significant drift from project vision. All sprints serve the core mission of "analyzing media outlets and social media accounts for potential disinformation activity." The addition of event intelligence (Sprints 6-7) expands the system from reactive (analyst-initiated analysis) to proactive (automated event detection), which is a natural evolution of the core mission.
+
+**Potential drift risks**:
+- CDDBS-Edge is a parallel track that could divert focus — mitigated by keeping it separate and experiment-phase only
+- Collaborative features (Sprint 8) could drift toward general-purpose workspace — must stay focused on analyst collaboration for disinformation analysis
+- Compliance documentation is valuable but must not become the primary focus — it supports engineering quality, not the other way around
+
+---
+
+## Compliance Documentation
+
+See [compliance-practices/](../compliance-practices/README.md) for comprehensive documentation of all DSGVO, CRA, and EU AI Act measures implemented across Sprints 1-7.

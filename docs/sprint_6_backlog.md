@@ -2,7 +2,7 @@
 
 **Sprint**: 6 (Mar 17-30, 2026)
 **Target**: v1.6.0
-**Status**: Planning
+**Status**: Complete
 **Related**: [Event Intelligence Pipeline](../research/event_intelligence_pipeline.md)
 
 ---
