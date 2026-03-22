@@ -1,6 +1,6 @@
 ---
 title: "Building CDDBS — Part 4: Multi-Platform Disinformation Detection"
-published: false
+published: https://dev.to/be11amer/building-cddbs-part-4-multi-platform-disinformation-detection-40d4
 description: "How we built platform adapters for Twitter and Telegram that normalize heterogeneous social media data into a common analysis format."
 tags: ai, python, security, api
 series: "Building CDDBS"
