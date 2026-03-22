@@ -1,6 +1,6 @@
 ---
 title: "Building CDDBS — Part 3: Scoring LLM Output Without Another LLM"
-published: false
+published: https://dev.to/be11amer/building-cddbs-part-3-scoring-llm-output-without-another-llm-325o
 description: "How we built a 7-dimension, 70-point quality rubric and a deterministic narrative matcher to evaluate AI-generated intelligence briefings."
 tags: ai, python, nlp, security
 series: "Building CDDBS"
