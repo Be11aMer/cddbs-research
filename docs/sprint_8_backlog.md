@@ -3,7 +3,7 @@
 **Sprint**: 8 (Apr 15 – Apr 28, 2026)
 **Target**: v1.8.0
 **Status**: Planning
-**Related**: [Sprint 7 Retrospective](../retrospectives/sprint_7.md) | [Topic Mode Plan](../../cddbs-prod/TOPIC_MODE_PLAN.md) | [Execution Plan](cddbs_execution_plan.md)
+**Related**: [Sprint 7 Retrospective](../retrospectives/sprint_7.md) | [Execution Plan](cddbs_execution_plan.md)
 **Branch Policy**: Production work branches from `development`, not `main`
 
 ---
