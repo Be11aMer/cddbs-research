@@ -1,6 +1,6 @@
 ---
 title: "Building CDDBS — Part 5: From Prototype to Production"
-published: false
+published: https://dev.to/be11amer/building-cddbs-part-5-from-prototype-to-production-10eh
 description: "Batch analysis, export pipelines, operational metrics, and the unglamorous engineering that makes an LLM-powered system actually usable."
 tags: ai, python, devops, webdev
 series: "Building CDDBS"
