@@ -1,6 +1,6 @@
 ---
 title: "Building CDDBS — Part 2: Inside the Analysis Pipeline"
-published: false
+published: https://dev.to/be11amer/building-cddbs-part-2-inside-the-analysis-pipeline-14gh
 description: "A deep dive into how CDDBS fetches articles, constructs prompts, calls Gemini, and parses structured intelligence briefings from LLM output."
 tags: ai, python, llm, backend
 series: "Building CDDBS"
