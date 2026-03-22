@@ -1,6 +1,6 @@
 # Sprint-by-Sprint Compliance Log
 
-**Last Updated**: 2026-03-18
+**Last Updated**: 2026-03-22
 **Purpose**: Track what compliance-relevant measures were implemented in each sprint
 
 ---
@@ -112,17 +112,40 @@ Sprint 6 was the **compliance hardening sprint**. The CI pipeline gained three c
 
 ---
 
-## Sprint 7: Intelligence Layer (Apr 1-14, 2026) — PLANNED
+## Sprint 7: Intelligence Layer (Mar 14-18, 2026) — COMPLETE
+
+### Compliance Measures Implemented
+
+| Measure | Regulation | Description |
+|---------|-----------|-------------|
+| Compliance practices documentation | All | 7 documents in `compliance-practices/` covering DSGVO, CRA, EU AI Act |
+| Recursive completeness audit | CRA Art. 13 | Task 7.29 PASSED — all code tested, documented, gap-free |
+| Vision alignment check | CRA Art. 10(6) | Sprints 1-7 verified on-mission — no drift detected |
+| Updated execution plan | CRA Art. 13 | Sprint 6 marked complete, Sprint 7 current, architecture updated |
+| CHANGELOG update | CRA Art. 13 | v2026.03.1 release notes with all Sprint 7 features |
+| 62 new tests (204 total) | CRA Annex I | Event clustering, burst detection, risk scoring, events API tests |
+| Risk scoring interpretability | EU AI Act Art. 50 | 4-signal decomposition; analysts see which signals drive each risk score |
+
+### Key Decision
+Sprint 7 is the first sprint where all compliance measures were **documented before implementation** via this compliance-practices folder. This folder now serves as a reusable reference for any formal regulatory assessment.
+
+---
+
+## Sprint 8: Topic Mode & Supply Chain Security (Apr 15-28, 2026) — PLANNED
 
 ### Planned Compliance Measures
 
 | Measure | Regulation | Description |
 |---------|-----------|-------------|
-| Compliance practices documentation | All | This folder — documenting all practices for reuse |
-| Recursive completeness audit | CRA Art. 13 | Final sprint task verifies all code tested and documented |
-| Vision alignment check | CRA Art. 10(6) | Verify project hasn't drifted from stated purpose |
-| Updated execution plan | CRA Art. 13 | Documentation reflects current state |
-| CHANGELOG update | CRA Art. 13 | Release notes for v1.7.0 |
+| **SBOM generation in CI** | CRA Art. 13(15) | CycloneDX `sbom.json` generated on every push to main/development; formally satisfies SBOM requirement |
+| **Dependency vulnerability scanning** | CRA Art. 10(4) | pip-audit in CI; blocks merge on HIGH/CRITICAL CVEs; exceptions require documented review |
+| **User-facing AI disclosure panel** | EU AI Act Art. 50 | Persistent panel on every briefing view: names Gemini as AI model, instructs analyst review |
+| **Topic Mode transparency** | EU AI Act Art. 50 | Divergence scores are deterministic and inspectable; methodology documented in DEVELOPER.md |
+| **Compliance log update** | CRA Art. 13 | This document updated at sprint close |
+| **≥18 new tests** | CRA Annex I | Topic pipeline, topic API, NetworkGraph coverage |
+
+### Key Decision
+Sprint 8 completes the CRA Art. 13(15) SBOM requirement that has been "SBOM-ready" since Sprint 6 (pinned requirements.txt). Generating the actual artifact closes the gap between readiness and compliance.
 
 ---
 
@@ -141,9 +164,11 @@ Sprint 5 ─── Operational Maturity (metrics, export, documentation)
     │
 Sprint 6 ─── CI Compliance Pipeline (secret scan, docs drift, branch policy, SECURITY.md)
     │
-Sprint 7 ─── Documentation & Audit (compliance practices, recursive verification)
+Sprint 7 ─── Documentation & Audit (compliance practices, recursive verification) ✓ COMPLETE
     │
-Sprint 8+ ── SBOM, auth, vulnerability scanning, formal assessment
+Sprint 8 ─── SBOM artifact, vulnerability scanning, AI disclosure UI  ← CURRENT
+    │
+Sprint 9+ ── User auth, formal assessment, CDDBS-Edge governance artifacts
 ```
 
 ---
@@ -152,10 +177,10 @@ Sprint 8+ ── SBOM, auth, vulnerability scanning, formal assessment
 
 | Metric | Value |
 |--------|-------|
-| Sprints with compliance measures | 7/7 (100%) |
-| Automated CI compliance checks | 4 (secret scan, docs drift, branch policy, linting) |
-| Test count | ~197 (and growing) |
-| Documentation pages | 10+ production docs, 12+ sprint docs, 5 blog posts, 7 compliance docs |
+| Sprints with compliance measures | 8/8 (100%) |
+| Automated CI compliance checks | 4 now, 6 planned (+ SBOM, pip-audit in Sprint 8) |
+| Test count | 204 (Sprint 7 complete) |
+| Documentation pages | 10+ production docs, 14+ sprint docs, 5 blog posts, 7 compliance docs |
 | Security-specific files | SECURITY.md, CODEOWNERS, detect_secrets.py, secret-scan.yml |
 | DSGVO measures | 6 (BYOK, minimization, purpose limitation, no tracking, secret protection, webhook signing) |
 | CRA measures | 8 (secret scan, docs drift, branch policy, SBOM-ready, SECURITY.md, documentation, version tags, change control) |
