@@ -1,6 +1,6 @@
 ---
 title: "Building CDDBS: An LLM-Powered Disinformation Analysis System — Part 1: Architecture & Threat Model"
-published: [true](https://dev.to/be11amer/building-cddbs-an-llm-powered-disinformation-analysis-system-part-1-architecture-threat-model-43b7)
+published: https://dev.to/be11amer/building-cddbs-an-llm-powered-disinformation-analysis-system-part-1-architecture-threat-model-43b7
 description: "How we designed a system that uses Gemini, SerpAPI, and structured intelligence tradecraft to detect disinformation narratives at scale."
 tags: ai, security, python, webdev
 series: "Building CDDBS"
