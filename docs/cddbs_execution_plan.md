@@ -3,7 +3,7 @@
 **Project**: Cyber Disinformation Detection Briefing System (CDDBS)
 **Start Date**: February 3, 2026
 **Delivery Model**: 2-week sprints
-**Last Updated**: 2026-03-18
+**Last Updated**: 2026-03-22
 
 ---
 
@@ -90,35 +90,41 @@ CDDBS is a system for analyzing media outlets and social media accounts for pote
 - **Compliance**: Major compliance sprint — secret scanning CI, docs drift detection, branch policy, SECURITY.md, CODEOWNERS
 - See [docs/sprint_6_backlog.md](sprint_6_backlog.md) for details
 
-### Sprint 7: Intelligence Layer & Compliance Hardening (Apr 1-14, 2026) — CURRENT
-**Target**: v1.7.0 | **Status**: Planning
+### Sprint 7: Intelligence Layer & Compliance Hardening (Mar 14-18, 2026) — COMPLETE
+**Target**: v1.7.0 | **Status**: Done
 
-- TF-IDF event clustering pipeline (agglomerative clustering)
-- Z-score burst detection on keyword frequency
+- TF-IDF event clustering pipeline (agglomerative clustering, distance_threshold=0.6)
+- Z-score burst detection (24h baseline, 1h window, threshold=3.0)
 - Narrative risk scoring (4-signal composite: source concentration, burst magnitude, timing sync, narrative match)
 - `/events` API endpoints (list, detail, map, bursts)
-- Frontend: EventClusterPanel, BurstTimeline, EventDetailDialog
-- Enhanced GlobalMap with event cluster markers
-- Compliance practices documentation (DSGVO, CRA, EU AI Act)
-- Recursive completeness audit (verify all Sprint 7 work implemented, tested, documented)
-- Vision alignment check (Sprints 1-7 against project mission)
+- Frontend: EventClusterPanel, BurstTimeline, EventDetailDialog, enhanced GlobalMap
+- Compliance practices documentation (7 documents: DSGVO, CRA, EU AI Act)
+- Recursive completeness audit PASSED — 204 tests, all CI green
 - **Compliance**: Full compliance documentation folder, recursive audit, vision alignment verification
-- See [docs/sprint_7_backlog.md](sprint_7_backlog.md) for details
+- See [docs/sprint_7_backlog.md](sprint_7_backlog.md) | [retrospectives/sprint_7.md](../retrospectives/sprint_7.md)
 
-### Sprint 8: Collaborative Features & SBOM (Apr-May 2026)
-- User authentication and authorization
+### Sprint 8: Topic Mode & Supply Chain Security (Apr 15-28, 2026) — CURRENT
+**Target**: v1.8.0 | **Status**: Planning
+
+- **Topic Mode**: Topic-centric multi-outlet comparative analysis (divergence scoring, amplification detection, outlet ranking)
+- **NetworkGraph.tsx**: Outlet relationship graph — carried from Sprint 5→6→7
+- **SBOM generation in CI**: CycloneDX format on every release build
+- **Dependency vulnerability scanning**: pip-audit in CI, blocks on HIGH/CRITICAL CVEs
+- **User-facing AI disclosure panel**: EU AI Act Art. 50 compliance at UI layer
+- **Compliance**: SBOM artifact, vulnerability scanning, AI disclosure, compliance log update
+- See [docs/sprint_8_backlog.md](sprint_8_backlog.md) for details
+
+### Sprint 9: User Authentication & Collaboration (May-Jun 2026)
+- User authentication and authorization (JWT, role model)
 - Shared analysis workspaces
 - Analyst annotations and comments on briefings
-- Formal SBOM generation in CI (CycloneDX/SPDX)
-- Automated dependency vulnerability scanning
-- User-facing AI disclosure in frontend UI
+- CDDBS-Edge Phase 0: Swap Gemini → Ollama, benchmark briefing quality
 
-### Sprints 9-12: Advanced Features (May-Jul 2026)
+### Sprints 10-12: Advanced Features (Jun-Aug 2026)
 - Machine learning model fine-tuning
 - Automated monitoring schedules
 - API for third-party integration
 - Multi-language support
-- NetworkGraph.tsx production implementation
 - Currents API collector integration
 
 ---
@@ -167,12 +173,17 @@ Demonstrates resilience, digital sovereignty, access equity, and privacy-preserv
 - Batch analysis and export (JSON/CSV/PDF)
 - Operational metrics and trend endpoints
 
-### Target Architecture (v1.7.0+)
-- Event clustering and burst detection (Sprint 7)
-- Narrative risk scoring composite (Sprint 7)
-- Events API and frontend visualization (Sprint 7)
-- User authentication (Sprint 8)
-- SBOM and vulnerability scanning (Sprint 8)
+### Achieved Architecture (v1.7.0)
+- Event clustering and burst detection (TF-IDF agglomerative + z-score)
+- Narrative risk scoring composite (4-signal: source_concentration, burst_magnitude, timing_sync, narrative_match)
+- Events API and frontend visualization (EventClusterPanel, BurstTimeline, GlobalMap overlay)
+- 204 tests, 3 CI workflows, 7 compliance documents
+
+### Target Architecture (v1.8.0+)
+- Topic Mode: topic-centric outlet discovery and divergence scoring (Sprint 8)
+- Outlet relationship NetworkGraph (Sprint 8)
+- SBOM generation and dependency vulnerability scanning in CI (Sprint 8)
+- User authentication and shared workspaces (Sprint 9)
 
 ---
 
@@ -198,7 +209,7 @@ Production code flows through the `development` branch as a staging/integration 
 
 ---
 
-## Vision Alignment Check (as of Sprint 7 Planning)
+## Vision Alignment Check (as of Sprint 8 Planning)
 
 | Sprint | Contribution to Vision | On Track? |
 |--------|----------------------|-----------|
@@ -208,13 +219,14 @@ Production code flows through the `development` branch as a staging/integration 
 | 4 | Production integration — making research usable | Yes |
 | 5 | Operational maturity — production-grade features | Yes |
 | 6 | Event intelligence — proactive monitoring capability | Yes |
-| 7 | Intelligence layer — automated event detection | Yes |
+| 7 | Intelligence layer — automated event detection | Yes ✓ |
+| 8 | Topic Mode — proactive outlet discovery by narrative divergence | Yes |
 
-**Drift assessment**: No significant drift from project vision. All sprints serve the core mission of "analyzing media outlets and social media accounts for potential disinformation activity." The addition of event intelligence (Sprints 6-7) expands the system from reactive (analyst-initiated analysis) to proactive (automated event detection), which is a natural evolution of the core mission.
+**Drift assessment**: No significant drift from project vision. All sprints serve the core mission of "analyzing media outlets and social media accounts for potential disinformation activity." Sprint 8's Topic Mode is a direct expression of the mission: given a topic, automatically discover which outlets diverge from neutral coverage — operationally more powerful than waiting for an analyst to know which outlet to analyze.
 
 **Potential drift risks**:
 - CDDBS-Edge is a parallel track that could divert focus — mitigated by keeping it separate and experiment-phase only
-- Collaborative features (Sprint 8) could drift toward general-purpose workspace — must stay focused on analyst collaboration for disinformation analysis
+- Collaborative features (Sprint 9) could drift toward general-purpose workspace — must stay focused on analyst collaboration for disinformation analysis
 - Compliance documentation is valuable but must not become the primary focus — it supports engineering quality, not the other way around
 
 ---
