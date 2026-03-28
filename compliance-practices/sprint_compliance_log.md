@@ -151,6 +151,29 @@ Sprint 8 closes three compliance gaps simultaneously: (1) SBOM generation moves 
 
 ---
 
+## Sprint 9: AI Trust, Information Security & Compliance Automation (Mar 28, 2026)
+
+### Compliance Measures Implemented
+
+| Measure | Regulation | Description |
+|---------|-----------|-------------|
+| Input sanitization | OWASP LLM01 | Prompt injection prevention via control char stripping, delimiter escaping, pattern filtering |
+| Output validation | OWASP LLM02, EU AI Act Art. 9 | Structural validation of Gemini JSON before DB storage |
+| Grounding score | EU AI Act Art. 14 | TF-IDF cosine similarity flags ungrounded LLM claims for analyst review |
+| Rate limiting | OWASP LLM04, CRA Art. 10 | slowapi per-endpoint limits prevent API abuse and quota exhaustion |
+| CORS hardening | OWASP, CRA | Explicit origin list replaces wildcard; credentials disabled |
+| Security headers | CRA Art. 10 | X-Content-Type-Options, X-Frame-Options, CSP, Cache-Control on all responses |
+| Error sanitization | OWASP LLM06 | Internal details (DB schema, stack traces) no longer leaked to clients |
+| API key hygiene | DSGVO Art. 32 | API keys removed from request schemas; server-side only |
+| Compliance endpoint | EU AI Act Art. 12 | Machine-readable evidence at GET /compliance/evidence |
+| Custom dependency scanner | CRA Art. 10(4) | Replaces Dependabot; scans Python + Node.js on schedule + push |
+| Dependabot disabled | CRA | In-repo scanning provides better control than external service |
+
+### Key Decision
+Sprint 9 was reprioritized to address security hardening before authentication (originally planned here). Rationale: rate limiting and input validation must exist before adding auth, and AI output trustworthiness is more mission-critical for a disinformation detection system than access control. Authentication deferred to Sprint 10.
+
+---
+
 ## Compliance Maturity Timeline
 
 ```
@@ -170,7 +193,9 @@ Sprint 7 ─── Documentation & Audit (compliance practices, recursive verifi
     │
 Sprint 8 ─── SBOM artifact, vulnerability scanning, AI provenance UI, supply chain hardening ✓ COMPLETE
     │
-Sprint 9 ─── AI trust framework, information security, compliance automation  ← CURRENT
+Sprint 9 ─── AI trust, information security, compliance automation ✓ COMPLETE
+    │
+Sprint 10 ── User authentication, CDDBS-Edge Phase 0  ← NEXT
 ```
 
 ---
@@ -179,11 +204,11 @@ Sprint 9 ─── AI trust framework, information security, compliance automati
 
 | Metric | Value |
 |--------|-------|
-| Sprints with compliance measures | 8/8 (100%) |
-| Automated CI compliance checks | 6 (secret scan, docs drift, branch policy, lint, SBOM, pip-audit) |
-| Test count | 214 (Sprint 8 complete: 204 + 10 new) |
-| Documentation pages | 10+ production docs, 16+ sprint docs, 5 blog posts, 7 compliance docs |
-| Security-specific files | SECURITY.md, CODEOWNERS, detect_secrets.py, secret-scan.yml, sbom.yml |
+| Sprints with compliance measures | 9/9 (100%) |
+| Automated CI compliance checks | 7 (secret scan, docs drift, branch policy, lint, SBOM, pip-audit, dependency-scan) |
+| Test count | 249 (Sprint 9: 214 + 35 new) |
+| Documentation pages | 10+ production docs, 18+ sprint docs, 5 blog posts, 7 compliance docs |
+| Security-specific files | SECURITY.md, CODEOWNERS, detect_secrets.py, secret-scan.yml, sbom.yml, dependency-scan.yml, security_headers.py, input_sanitizer.py |
 | DSGVO measures | 6 (BYOK, minimization, purpose limitation, no tracking, secret protection, webhook signing) |
-| CRA measures | 10 (secret scan, docs drift, branch policy, SBOM generation, pip-audit, SECURITY.md, documentation, SHA-pinned Actions, version tags, change control) |
-| EU AI Act measures | 7 (confidence framework, quality rubric, human oversight, record keeping, AI labeling, AI provenance UI, coordination signal transparency) |
+| CRA measures | 12 (secret scan, docs drift, branch policy, SBOM generation, pip-audit, custom dependency scanner, SECURITY.md, documentation, SHA-pinned Actions, version tags, change control, error sanitization) |
+| EU AI Act measures | 10 (confidence framework, quality rubric, human oversight, record keeping, AI labeling, AI provenance UI, coordination signal transparency, grounding score, output validation, compliance evidence endpoint) |
