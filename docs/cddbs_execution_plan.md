@@ -3,7 +3,7 @@
 **Project**: Cyber Disinformation Detection Briefing System (CDDBS)
 **Start Date**: February 3, 2026
 **Delivery Model**: 2-week sprints
-**Last Updated**: 2026-03-22
+**Last Updated**: 2026-03-28
 
 ---
 
@@ -103,22 +103,35 @@ CDDBS is a system for analyzing media outlets and social media accounts for pote
 - **Compliance**: Full compliance documentation folder, recursive audit, vision alignment verification
 - See [docs/sprint_7_backlog.md](sprint_7_backlog.md) | [retrospectives/sprint_7.md](../retrospectives/sprint_7.md)
 
-### Sprint 8: Topic Mode & Supply Chain Security (Apr 15-28, 2026) — CURRENT
-**Target**: v1.8.0 | **Status**: Planning
+### Sprint 8: Topic Mode & Supply Chain Security (Mar 22-28, 2026) — COMPLETE
+**Target**: v1.8.0 | **Status**: Done
 
-- **Topic Mode**: Topic-centric multi-outlet comparative analysis (divergence scoring, amplification detection, outlet ranking)
-- **NetworkGraph.tsx**: Outlet relationship graph — carried from Sprint 5→6→7
-- **SBOM generation in CI**: CycloneDX format on every release build
-- **Dependency vulnerability scanning**: pip-audit in CI, blocks on HIGH/CRITICAL CVEs
-- **User-facing AI disclosure panel**: EU AI Act Art. 50 compliance at UI layer
-- **Compliance**: SBOM artifact, vulnerability scanning, AI disclosure, compliance log update
-- See [docs/sprint_8_backlog.md](sprint_8_backlog.md) for details
+- Topic Mode: 5-step pipeline (baseline → discovery → per-outlet comparative analysis) with coordination signal detection, key claims/omissions extraction
+- OutletNetworkGraph.tsx: Force-directed outlet relationship graph in MonitoringDashboard
+- AIProvenanceCard.tsx: Tiered AI disclosure (EU AI Act Art. 50) — model ID, prompt version, quality score, legal text
+- SBOM generation in CI: CycloneDX `sbom.yml` on every push to main/development, 90-day artifact retention
+- Dependency vulnerability scanning: pip-audit in CI, fails on actionable HIGH/CRITICAL CVEs
+- GitHub Actions pinned to commit SHAs (GhostAction supply chain mitigation)
+- 10 new tests (coordination logic, key claims, API schema, ai_metadata)
+- Migration fixes: startup column migrations for Sprint 8 DB schema
+- Infrastructure: Cloudflare Workers (frontend + GDELT proxy), Fly.io/Koyeb exploration, keep-alive workflow
+- **Compliance**: SBOM artifact (CRA Art. 13(15)), pip-audit (CRA Art. 10(4)), AI provenance (EU AI Act Art. 50)
+- See [docs/sprint_8_backlog.md](sprint_8_backlog.md) | [retrospectives/sprint_8.md](../retrospectives/sprint_8.md)
 
-### Sprint 9: User Authentication & Collaboration (May-Jun 2026)
-- User authentication and authorization (JWT, role model)
-- Shared analysis workspaces
-- Analyst annotations and comments on briefings
+### Sprint 9: AI Trust, Information Security & Compliance Automation (Apr 1-14, 2026) — CURRENT
+**Target**: v1.9.0 | **Status**: Planning
+
+- **AI Trust Framework**: LLM output validation, hallucination detection (grounding score), confidence calibration, reproducibility checks
+- **Information Security Hardening**: CORS fix, rate limiting (slowapi), prompt injection prevention, SSRF protection, security headers, error sanitization, API key hygiene
+- **Compliance Automation**: CI compliance evidence report, machine-readable compliance endpoint, data retention policy
+- **OWASP LLM Top 10**: Systematic coverage of applicable risks
+- **Compliance**: Information security practices document, EU AI Act trust measures, CRA security hardening
+- See [docs/sprint_9_backlog.md](sprint_9_backlog.md) for details
+
+### Sprint 10: User Authentication & Collaboration (Apr-May 2026)
+- User authentication and authorization (JWT, role model, session management)
 - CDDBS-Edge Phase 0: Swap Gemini → Ollama, benchmark briefing quality
+- Shared analysis workspaces (depends on auth)
 
 ### Sprints 10-12: Advanced Features (Jun-Aug 2026)
 - Machine learning model fine-tuning
@@ -179,11 +192,18 @@ Demonstrates resilience, digital sovereignty, access equity, and privacy-preserv
 - Events API and frontend visualization (EventClusterPanel, BurstTimeline, GlobalMap overlay)
 - 204 tests, 3 CI workflows, 7 compliance documents
 
-### Target Architecture (v1.8.0+)
-- Topic Mode: topic-centric outlet discovery and divergence scoring (Sprint 8)
-- Outlet relationship NetworkGraph (Sprint 8)
-- SBOM generation and dependency vulnerability scanning in CI (Sprint 8)
-- User authentication and shared workspaces (Sprint 9)
+### Achieved Architecture (v1.8.0)
+- Topic Mode: 5-step pipeline — baseline fetch, Gemini baseline, broad discovery, per-outlet comparative analysis, coordination signal detection
+- OutletNetworkGraph: force-directed outlet relationship visualization
+- AIProvenanceCard: tiered AI disclosure (model ID, prompt version, quality score, legal text)
+- SBOM generation (CycloneDX) and pip-audit vulnerability scanning in CI
+- GitHub Actions pinned to commit SHAs (supply chain hardening)
+- Infrastructure: Cloudflare Workers (frontend + GDELT proxy), keep-alive workflow
+
+### Target Architecture (v1.9.0+)
+- AI trust framework: structured output validation, hallucination detection, confidence calibration (Sprint 9)
+- Information security: rate limiting, input sanitization, API key rotation (Sprint 9)
+- User authentication and shared workspaces (Sprint 10)
 
 ---
 
@@ -220,7 +240,7 @@ Production code flows through the `development` branch as a staging/integration 
 | 5 | Operational maturity — production-grade features | Yes |
 | 6 | Event intelligence — proactive monitoring capability | Yes |
 | 7 | Intelligence layer — automated event detection | Yes ✓ |
-| 8 | Topic Mode — proactive outlet discovery by narrative divergence | Yes |
+| 8 | Topic Mode, supply chain security, AI provenance — proactive discovery + compliance | Yes ✓ |
 
 **Drift assessment**: No significant drift from project vision. All sprints serve the core mission of "analyzing media outlets and social media accounts for potential disinformation activity." Sprint 8's Topic Mode is a direct expression of the mission: given a topic, automatically discover which outlets diverge from neutral coverage — operationally more powerful than waiting for an analyst to know which outlet to analyze.
 

@@ -1,6 +1,6 @@
 # Sprint-by-Sprint Compliance Log
 
-**Last Updated**: 2026-03-22
+**Last Updated**: 2026-03-28
 **Purpose**: Track what compliance-relevant measures were implemented in each sprint
 
 ---
@@ -131,21 +131,23 @@ Sprint 7 is the first sprint where all compliance measures were **documented bef
 
 ---
 
-## Sprint 8: Topic Mode & Supply Chain Security (Apr 15-28, 2026) — PLANNED
+## Sprint 8: Topic Mode & Supply Chain Security (Mar 22-28, 2026) — COMPLETE
 
-### Planned Compliance Measures
+### Compliance Measures Implemented
 
 | Measure | Regulation | Description |
 |---------|-----------|-------------|
-| **SBOM generation in CI** | CRA Art. 13(15) | CycloneDX `sbom.json` generated on every push to main/development; formally satisfies SBOM requirement |
-| **Dependency vulnerability scanning** | CRA Art. 10(4) | pip-audit in CI; blocks merge on HIGH/CRITICAL CVEs; exceptions require documented review |
-| **User-facing AI disclosure panel** | EU AI Act Art. 50 | Persistent panel on every briefing view: names Gemini as AI model, instructs analyst review |
-| **Topic Mode transparency** | EU AI Act Art. 50 | Divergence scores are deterministic and inspectable; methodology documented in DEVELOPER.md |
-| **Compliance log update** | CRA Art. 13 | This document updated at sprint close |
-| **≥18 new tests** | CRA Annex I | Topic pipeline, topic API, NetworkGraph coverage |
+| **SBOM generation in CI** | CRA Art. 13(15) | CycloneDX `sbom.json` generated on every push to main/development via `sbom.yml`; uploaded as 90-day CI artifact; BSI TR-03183-2 compatible format |
+| **Dependency vulnerability scanning** | CRA Art. 10(4) | pip-audit in CI (`ci.yml` vulnerability-scan job); fails on actionable HIGH/CRITICAL CVEs (non-empty fix_versions); unfixable CVEs logged as notices |
+| **AI provenance disclosure** | EU AI Act Art. 50 | `AIProvenanceCard.tsx` — tiered disclosure: badge showing model ID + prompt version, expandable provenance detail with quality score and legal text; replaces generic "Experimental" alert |
+| **Machine-readable AI metadata** | EU AI Act Art. 50 | `ai_metadata` object in `GET /analysis-runs/{id}` response: model_id, prompt_version, quality_score, requires_human_review, disclosure text |
+| **Topic Mode transparency** | EU AI Act Art. 50 | Divergence scores (0-100) are deterministic and inspectable; coordination signal computation documented; methodology in DEVELOPER.md Section 15 |
+| **Supply chain hardening** | CRA Art. 10(4) | All GitHub Actions pinned to commit SHAs (mitigates GhostAction-style supply chain attacks on CI); `cyclonedx-bom` and `pip-audit` added to `requirements.txt` |
+| **Coordination signal detection** | EU AI Act Art. 50 | Post-analysis computation flags coordinated narrative clusters (outlets sharing ≥2 propaganda techniques at divergence ≥60); score + detail stored and surfaced in UI |
+| **10 new tests** | CRA Annex I | `test_sprint8_topic_innovations.py` — coordination logic, key claims/omissions storage, API schema completeness, ai_metadata structure validation |
 
 ### Key Decision
-Sprint 8 completes the CRA Art. 13(15) SBOM requirement that has been "SBOM-ready" since Sprint 6 (pinned requirements.txt). Generating the actual artifact closes the gap between readiness and compliance.
+Sprint 8 closes three compliance gaps simultaneously: (1) SBOM generation moves from "ready" to "done" (CRA Art. 13(15)), (2) AI disclosure moves from system-prompt-level to user-facing UI (EU AI Act Art. 50), (3) supply chain integrity via SHA-pinned Actions and vulnerability scanning. The coordination signal detection is an innovation beyond the original backlog — it surfaces potential coordinated disinformation campaigns, directly serving the project mission.
 
 ---
 
@@ -166,9 +168,9 @@ Sprint 6 ─── CI Compliance Pipeline (secret scan, docs drift, branch polic
     │
 Sprint 7 ─── Documentation & Audit (compliance practices, recursive verification) ✓ COMPLETE
     │
-Sprint 8 ─── SBOM artifact, vulnerability scanning, AI disclosure UI  ← CURRENT
+Sprint 8 ─── SBOM artifact, vulnerability scanning, AI provenance UI, supply chain hardening ✓ COMPLETE
     │
-Sprint 9+ ── User auth, formal assessment, CDDBS-Edge governance artifacts
+Sprint 9 ─── AI trust framework, information security, compliance automation  ← CURRENT
 ```
 
 ---
@@ -178,10 +180,10 @@ Sprint 9+ ── User auth, formal assessment, CDDBS-Edge governance artifacts
 | Metric | Value |
 |--------|-------|
 | Sprints with compliance measures | 8/8 (100%) |
-| Automated CI compliance checks | 4 now, 6 planned (+ SBOM, pip-audit in Sprint 8) |
-| Test count | 204 (Sprint 7 complete) |
-| Documentation pages | 10+ production docs, 14+ sprint docs, 5 blog posts, 7 compliance docs |
-| Security-specific files | SECURITY.md, CODEOWNERS, detect_secrets.py, secret-scan.yml |
+| Automated CI compliance checks | 6 (secret scan, docs drift, branch policy, lint, SBOM, pip-audit) |
+| Test count | 214 (Sprint 8 complete: 204 + 10 new) |
+| Documentation pages | 10+ production docs, 16+ sprint docs, 5 blog posts, 7 compliance docs |
+| Security-specific files | SECURITY.md, CODEOWNERS, detect_secrets.py, secret-scan.yml, sbom.yml |
 | DSGVO measures | 6 (BYOK, minimization, purpose limitation, no tracking, secret protection, webhook signing) |
-| CRA measures | 8 (secret scan, docs drift, branch policy, SBOM-ready, SECURITY.md, documentation, version tags, change control) |
-| EU AI Act measures | 5 (confidence framework, quality rubric, human oversight, record keeping, AI labeling) |
+| CRA measures | 10 (secret scan, docs drift, branch policy, SBOM generation, pip-audit, SECURITY.md, documentation, SHA-pinned Actions, version tags, change control) |
+| EU AI Act measures | 7 (confidence framework, quality rubric, human oversight, record keeping, AI labeling, AI provenance UI, coordination signal transparency) |
