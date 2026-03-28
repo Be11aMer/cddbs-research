@@ -1,4 +1,4 @@
-# Cybersecurity Disinformation Detection Briefing System (CDDBS)
+# Cyber Disinformation Detection Briefing System (CDDBS)
 
 > An automated intelligence briefing system that monitors, analyzes, and summarizes media narratives to detect and explain disinformation patterns — combining LLM-driven analysis with professional intelligence community standards.
 
