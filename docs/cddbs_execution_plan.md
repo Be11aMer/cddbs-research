@@ -128,15 +128,18 @@ CDDBS is a system for analyzing media outlets and social media accounts for pote
 - **Compliance**: Information security practices document, EU AI Act trust measures, CRA security hardening
 - See [docs/sprint_9_backlog.md](sprint_9_backlog.md) for details
 
-### Sprint 10: User Authentication & Collaboration (Apr-May 2026)
+### Sprint 10: User Authentication & CDDBS-Edge (Apr-May 2026)
 - User authentication and authorization (JWT, role model, session management)
 - CDDBS-Edge Phase 0: Swap Gemini → Ollama, benchmark briefing quality
-- Shared analysis workspaces (depends on auth)
+- Analyst annotations and comments on briefings
 
-### Sprints 10-12: Advanced Features (Jun-Aug 2026)
-- Machine learning model fine-tuning
+### Sprint 11: Collaboration & Advanced Features (May-Jun 2026)
+- Shared analysis workspaces (depends on Sprint 10 auth)
 - Automated monitoring schedules
 - API for third-party integration
+
+### Sprints 12+: Future (Jun-Aug 2026)
+- Machine learning model fine-tuning
 - Multi-language support
 - Currents API collector integration
 
@@ -241,8 +244,11 @@ Production code flows through the `development` branch as a staging/integration 
 | 6 | Event intelligence — proactive monitoring capability | Yes |
 | 7 | Intelligence layer — automated event detection | Yes ✓ |
 | 8 | Topic Mode, supply chain security, AI provenance — proactive discovery + compliance | Yes ✓ |
+| 9 | AI trust, information security, compliance automation — output integrity + platform hardening | Yes ✓ |
 
-**Drift assessment**: No significant drift from project vision. All sprints serve the core mission of "analyzing media outlets and social media accounts for potential disinformation activity." Sprint 8's Topic Mode is a direct expression of the mission: given a topic, automatically discover which outlets diverge from neutral coverage — operationally more powerful than waiting for an analyst to know which outlet to analyze.
+**Drift assessment**: No significant drift from project vision. All sprints serve the core mission of "analyzing media outlets and social media accounts for potential disinformation activity."
+
+**Sprint 9 reprioritization note**: The original plan placed user authentication in Sprint 9. The Sprint 8 security audit revealed critical gaps (prompt injection, no rate limiting, CORS misconfiguration) that must be resolved before adding auth. Additionally, for a disinformation detection system, AI output trustworthiness (grounding scores, hallucination detection) is more mission-critical than access control. Auth is now Sprint 10 — this is a deliberate sequencing decision, not scope drift. The core features (auth, workspaces, annotations, CDDBS-Edge) remain on the roadmap with unchanged priority.
 
 **Potential drift risks**:
 - CDDBS-Edge is a parallel track that could divert focus — mitigated by keeping it separate and experiment-phase only
