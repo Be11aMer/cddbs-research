@@ -3,7 +3,7 @@
 **Sprint**: 9 (Apr 1 – Apr 14, 2026)
 **Target**: v0.9.0
 **Status**: Complete (Implementation 2026-03-28)
-**Related**: [Sprint 8 Retrospective](../retrospectives/sprint_8.md) | [Execution Plan](cddbs_execution_plan.md) | [Security Audit Findings](#security-audit-findings)
+**Related**: [Sprint 8 Retrospective](../retrospectives/sprint_8.md) | [Execution Plan](cddbs_execution_plan.md) | Security Audit Findings (below)
 **Branch Policy**: Production work branches from `development`, not `main`
 
 ---
@@ -86,7 +86,7 @@ The Sprint 8 completeness audit identified these security gaps in cddbs-prod:
 |---|------|--------|---------------------|
 | 9.6.1 | Enum validation for constrained fields | S | `date_filter: Literal["h", "d", "w", "m", "y"]`; `platform: Literal["twitter", "telegram"]`; Pydantic validates automatically |
 | 9.6.2 | Webhook URL validation + SSRF prevention | M | Validate URL format (httpx.URL or urllib.parse); block private IP ranges (10.x, 172.16-31.x, 192.168.x, 127.x, 169.254.x, ::1); block non-HTTP(S) schemes; max URL length 2048 |
-| 9.6.3 | Outlet name validation | S | Regex pattern for outlet: domain-like string (`^[a-zA-Z0-9]([a-zA-Z0-9\-\.]*[a-zA-Z0-9])?$`); max 253 chars; reject obvious injection patterns |
+| 9.6.3 | Outlet name validation | S | Regex pattern for outlet: domain-like alphanumeric string with hyphens/dots; max 253 chars; reject obvious injection patterns |
 
 ### 9.7 Security Headers
 
