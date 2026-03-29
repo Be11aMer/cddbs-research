@@ -67,29 +67,31 @@ See [docs/API_SETUP.md](docs/API_SETUP.md) for full API key setup instructions.
 
 ## Project Status & Roadmap
 
-**Current Version**: v1.9.0 (Sprint 9 complete — 2026-03-28)
+**Current Version**: v0.9.0 (Sprint 9 complete — 2026-03-28)
+
+> Versioning: `0.x.y` semver — major version 0 signals pre-release (personal testing + stakeholder demos). `1.0.0` will be cut when authentication exists and external testers are onboarded.
 
 ### Completed Sprints
 
 | Sprint | Version | Focus | Key Deliverables |
 |--------|---------|-------|------------------|
-| 1 | v1.1.0 | Briefing Format Redesign | 7-section briefing template, JSON Schema, system prompt v1.1 |
-| 2 | v1.2.0 | Quality & Reliability | 70-point quality rubric, 18 narratives, 41 tests |
-| 3 | v1.3.0 | Multi-Platform Support | Telegram analysis, platform adapters, 80 tests |
-| 4 | v1.4.0 | Production Integration | Quality scorer + narrative matcher in pipeline, frontend components, 136 tests |
-| 5 | v1.5.0 | Operational Maturity | JSON export, metrics, DEVELOPER.md, CI pipeline, 132 prod tests |
-| 6 | v1.6.0 | CI Compliance Pipeline | Secret scan, docs drift, branch policy, SECURITY.md |
-| 7 | v1.7.0 | Intelligence Layer | Event clustering, burst detection, narrative risk scoring, events API, 204 tests |
-| 8 | v1.8.0 | Topic Mode Innovations | Coordination signal, key claims/omissions, AI provenance, SBOM, pip-audit, 214 tests |
-| 9 | v1.9.0 | AI Trust & Security | Input sanitization, output validation, grounding score, rate limiting, security headers, dependency scanner, 249 tests |
+| 1 | v0.1.0 | Briefing Format Redesign | 7-section briefing template, JSON Schema, system prompt v1.1 |
+| 2 | v0.2.0 | Quality & Reliability | 70-point quality rubric, 18 narratives, 41 tests |
+| 3 | v0.3.0 | Multi-Platform Support | Telegram analysis, platform adapters, 80 tests |
+| 4 | v0.4.0 | Production Integration | Quality scorer + narrative matcher in pipeline, frontend components, 136 tests |
+| 5 | v0.5.0 | Operational Maturity | JSON export, metrics, DEVELOPER.md, CI pipeline, 132 prod tests |
+| 6 | v0.6.0 | CI Compliance Pipeline | Secret scan, docs drift, branch policy, SECURITY.md |
+| 7 | v0.7.0 | Intelligence Layer | Event clustering, burst detection, narrative risk scoring, events API, 204 tests |
+| 8 | v0.8.0 | Topic Mode Innovations | Coordination signal, key claims/omissions, AI provenance, SBOM, pip-audit, 214 tests |
+| 9 | v0.9.0 | AI Trust & Security | Input sanitization, output validation, grounding score, rate limiting, security headers, dependency scanner, 249 tests |
 
 ### Upcoming
 
 | Sprint | Target | Focus |
 |--------|--------|-------|
-| 10 | v1.10.0 | User Authentication + CDDBS-Edge Phase 0 |
-| 11 | v1.11.0 | Collaboration (analyst annotations, shared workspaces) |
-| 12 | v1.12.0 | Advanced features (ML fine-tuning, multi-language) |
+| 10 | v0.10.0 | User Authentication + CDDBS-Edge Phase 0 |
+| 11 | v0.11.0 | Collaboration (analyst annotations, shared workspaces) |
+| 12 | v0.12.0 | Advanced features (ML fine-tuning, multi-language) |
 
 ---
 
@@ -107,7 +109,7 @@ See [research/cddbs_edge_concept.md](research/cddbs_edge_concept.md) for the ful
 
 ## Architecture
 
-### Current Stack (v1.9.0)
+### Current Stack (v0.9.0)
 
 | Component | Technology |
 |-----------|-----------|

@@ -1,7 +1,7 @@
 # Sprint 9 Backlog — AI Trust, Information Security & Compliance Automation
 
 **Sprint**: 9 (Apr 1 – Apr 14, 2026)
-**Target**: v1.9.0
+**Target**: v0.9.0
 **Status**: Complete (Implementation 2026-03-28)
 **Related**: [Sprint 8 Retrospective](../retrospectives/sprint_8.md) | [Execution Plan](cddbs_execution_plan.md) | [Security Audit Findings](#security-audit-findings)
 **Branch Policy**: Production work branches from `development`, not `main`

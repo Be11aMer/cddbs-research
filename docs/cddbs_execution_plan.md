@@ -63,7 +63,7 @@ CDDBS is a system for analyzing media outlets and social media accounts for pote
 - **Compliance**: Controlled research→prod transfer, analyst feedback loop
 
 ### Sprint 5: Operational Maturity & Data Ingestion (Mar 3-16, 2026) — COMPLETE
-**Target**: v1.5.0 | **Status**: Done
+**Target**: v0.5.0 | **Status**: Done
 
 - Twitter API v2 integration (direct account analysis via platform adapter)
 - Batch analysis support (multiple outlets in single request)
@@ -76,7 +76,7 @@ CDDBS is a system for analyzing media outlets and social media accounts for pote
 - See [docs/sprint_5_backlog.md](sprint_5_backlog.md) for details
 
 ### Sprint 6: Scale, Analytics & Event Intelligence (Mar 14-18, 2026) — COMPLETE
-**Target**: v1.6.0 | **Status**: Done
+**Target**: v0.6.0 | **Status**: Done
 
 - Event Intelligence Pipeline: RSS (15 feeds) + GDELT Doc API v2 collectors
 - BaseCollector ABC + CollectorManager with async scheduling
@@ -91,7 +91,7 @@ CDDBS is a system for analyzing media outlets and social media accounts for pote
 - See [docs/sprint_6_backlog.md](sprint_6_backlog.md) for details
 
 ### Sprint 7: Intelligence Layer & Compliance Hardening (Mar 14-18, 2026) — COMPLETE
-**Target**: v1.7.0 | **Status**: Done
+**Target**: v0.7.0 | **Status**: Done
 
 - TF-IDF event clustering pipeline (agglomerative clustering, distance_threshold=0.6)
 - Z-score burst detection (24h baseline, 1h window, threshold=3.0)
@@ -104,7 +104,7 @@ CDDBS is a system for analyzing media outlets and social media accounts for pote
 - See [docs/sprint_7_backlog.md](sprint_7_backlog.md) | [retrospectives/sprint_7.md](../retrospectives/sprint_7.md)
 
 ### Sprint 8: Topic Mode & Supply Chain Security (Mar 22-28, 2026) — COMPLETE
-**Target**: v1.8.0 | **Status**: Done
+**Target**: v0.8.0 | **Status**: Done
 
 - Topic Mode: 5-step pipeline (baseline → discovery → per-outlet comparative analysis) with coordination signal detection, key claims/omissions extraction
 - OutletNetworkGraph.tsx: Force-directed outlet relationship graph in MonitoringDashboard
@@ -118,14 +118,16 @@ CDDBS is a system for analyzing media outlets and social media accounts for pote
 - **Compliance**: SBOM artifact (CRA Art. 13(15)), pip-audit (CRA Art. 10(4)), AI provenance (EU AI Act Art. 50)
 - See [docs/sprint_8_backlog.md](sprint_8_backlog.md) | [retrospectives/sprint_8.md](../retrospectives/sprint_8.md)
 
-### Sprint 9: AI Trust, Information Security & Compliance Automation (Apr 1-14, 2026) — CURRENT
-**Target**: v1.9.0 | **Status**: Planning
+### Sprint 9: AI Trust, Information Security & Compliance Automation (Mar 28, 2026) — COMPLETE
+**Target**: v0.9.0 | **Status**: Done
 
-- **AI Trust Framework**: LLM output validation, hallucination detection (grounding score), confidence calibration, reproducibility checks
-- **Information Security Hardening**: CORS fix, rate limiting (slowapi), prompt injection prevention, SSRF protection, security headers, error sanitization, API key hygiene
-- **Compliance Automation**: CI compliance evidence report, machine-readable compliance endpoint, data retention policy
-- **OWASP LLM Top 10**: Systematic coverage of applicable risks
-- **Compliance**: Information security practices document, EU AI Act trust measures, CRA security hardening
+- **AI Trust Framework**: LLM output validation (`output_validator.py`), grounding score (TF-IDF claim verification), confidence calibration
+- **Information Security Hardening**: CORS fix, rate limiting (slowapi), prompt injection prevention (`input_sanitizer.py`), security headers, error sanitization, API key hygiene
+- **Compliance Automation**: Machine-readable `/compliance/evidence` endpoint, custom dependency scanner (replaces Dependabot)
+- **OWASP LLM Top 10**: LLM01, LLM02, LLM04, LLM06, LLM09 mitigated
+- 35 new tests, 249 total
+- **Compliance**: OWASP LLM Top 10 coverage, EU AI Act Art. 9/12/14, CRA security hardening
+- **Versioning**: Adopted semver `0.x.y` — retagged `v2026.03` → `v0.5.0`
 - See [docs/sprint_9_backlog.md](sprint_9_backlog.md) for details
 
 ### Sprint 10: User Authentication & CDDBS-Edge (Apr-May 2026)
@@ -168,15 +170,16 @@ Demonstrates resilience, digital sovereignty, access equity, and privacy-preserv
 
 ## Architecture
 
-### Current Stack (as of v1.6.0)
-- **Backend**: FastAPI + uvicorn on Render (Docker)
-- **Frontend**: React 18 + TypeScript + MUI 6 + Vite on Render (Nginx)
+### Current Stack (as of v0.9.0)
+- **Backend**: FastAPI + uvicorn + slowapi on Render (Docker)
+- **Frontend**: React 18 + TypeScript + MUI 6 + Vite on Cloudflare Workers + Render
 - **Database**: PostgreSQL 15 (Neon managed, 12 tables)
 - **LLM**: Google Gemini 2.5 Flash via google-genai SDK
-- **Data Sources**: SerpAPI Google News, Twitter API v2, GDELT Doc API v2, RSS (15 feeds)
+- **Data Sources**: SerpAPI Google News, Twitter API v2, GDELT Doc API v2 (Cloudflare proxy), RSS (15 feeds)
+- **CI**: GitHub Actions (7 workflows)
 - **Source Code**: GitHub (cddbs-prod + cddbs-research)
 
-### Achieved Architecture (v1.6.0)
+### Achieved Architecture (v0.6.0)
 - Structured briefing output validated against JSON Schema v1.2
 - 7-dimension quality scoring pipeline (70-point rubric)
 - Narrative detection against 50+ known disinformation narratives
@@ -189,13 +192,13 @@ Demonstrates resilience, digital sovereignty, access equity, and privacy-preserv
 - Batch analysis and export (JSON/CSV/PDF)
 - Operational metrics and trend endpoints
 
-### Achieved Architecture (v1.7.0)
+### Achieved Architecture (v0.7.0)
 - Event clustering and burst detection (TF-IDF agglomerative + z-score)
 - Narrative risk scoring composite (4-signal: source_concentration, burst_magnitude, timing_sync, narrative_match)
 - Events API and frontend visualization (EventClusterPanel, BurstTimeline, GlobalMap overlay)
 - 204 tests, 3 CI workflows, 7 compliance documents
 
-### Achieved Architecture (v1.8.0)
+### Achieved Architecture (v0.8.0)
 - Topic Mode: 5-step pipeline — baseline fetch, Gemini baseline, broad discovery, per-outlet comparative analysis, coordination signal detection
 - OutletNetworkGraph: force-directed outlet relationship visualization
 - AIProvenanceCard: tiered AI disclosure (model ID, prompt version, quality score, legal text)
@@ -203,10 +206,17 @@ Demonstrates resilience, digital sovereignty, access equity, and privacy-preserv
 - GitHub Actions pinned to commit SHAs (supply chain hardening)
 - Infrastructure: Cloudflare Workers (frontend + GDELT proxy), keep-alive workflow
 
-### Target Architecture (v1.9.0+)
-- AI trust framework: structured output validation, hallucination detection, confidence calibration (Sprint 9)
-- Information security: rate limiting, input sanitization, API key rotation (Sprint 9)
-- User authentication and shared workspaces (Sprint 10)
+### Achieved Architecture (v0.9.0)
+- AI trust framework: output validation, grounding score (TF-IDF claim verification), confidence calibration
+- Information security: CORS hardening, rate limiting (slowapi), input sanitization, security headers, error sanitization, API key hygiene
+- Compliance automation: `/compliance/evidence` endpoint, custom dependency scanner (replaces Dependabot)
+- OWASP LLM Top 10: LLM01, LLM02, LLM04, LLM06, LLM09 mitigated
+- 249 tests, 7 CI workflows
+
+### Target Architecture (v0.10.0+)
+- User authentication and authorization (JWT, RBAC)
+- CDDBS-Edge Phase 0 (Gemini → Ollama swap, benchmark)
+- Shared analysis workspaces
 
 ---
 
