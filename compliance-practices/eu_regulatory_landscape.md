@@ -59,7 +59,7 @@ The CRA applies to "products with digital elements" placed on the EU market. As 
 | **Vulnerability handling** (Annex I, Part II) | SECURITY.md with CVE reporting process, 48h acknowledgement SLA |
 | **Documentation** (Art. 13) | DEVELOPER.md (45KB), QUICK_START.md, DATABASE_CONNECTION.md, inline code docs |
 | **SBOM readiness** (Art. 13(15)) | `requirements.txt` with pinned versions, `package.json` with lockfile; ready for CycloneDX/SPDX generation |
-| **Update mechanism** (Art. 10(12)) | Docker-based deployment, version-tagged releases (v2026.03), CHANGELOG.md |
+| **Update mechanism** (Art. 10(12)) | Docker-based deployment, semver-tagged releases (v0.5.0–v0.9.0), CHANGELOG.md |
 | **No known exploitable vulnerabilities** (Art. 10(4)) | Secret scanning CI, dependency versions reviewed, no hardcoded credentials |
 | **Documentation integrity** (Art. 13) | CI documentation drift detection (`scripts/check_docs_drift.py`) ensures docs match code |
 

@@ -39,7 +39,7 @@ The CRA's first enforcement deadline is **September 2026** — months away. Whil
 | CRA Expectation | CDDBS Implementation | Evidence |
 |-----------------|---------------------|----------|
 | Documented vulnerability handling process | SECURITY.md with reporting process, scope, response timeline | `SECURITY.md` |
-| Timely security updates | Docker-based deployment allows rapid patching; tagged releases | `Dockerfile`, `v2026.03` tag |
+| Timely security updates | Docker-based deployment allows rapid patching; semver-tagged releases | `Dockerfile`, `v0.9.0` tag |
 | Public disclosure mechanism | GitHub Security Advisories; SECURITY.md provides contact | `SECURITY.md` |
 | SBOM (Software Bill of Materials) | `requirements.txt` with versions; `package.json` with lockfile; ready for CycloneDX generation | `requirements.txt`, `frontend/package.json` |
 | Reporting of actively exploited vulnerabilities | Process documented; GitHub issues for tracking | `SECURITY.md` |
@@ -85,7 +85,7 @@ The CRA requires documentation to be "kept up to date" (Art. 13). Most projects 
 | Mechanism | Implementation |
 |-----------|---------------|
 | Containerized deployment | Docker + Docker Compose; `docker compose pull && docker compose up` updates all services |
-| Version tagging | Git tags (`v2026.03`); CHANGELOG.md tracks all changes |
+| Version tagging | Semver git tags (`v0.5.0`…`v0.9.0`); CHANGELOG.md tracks all changes |
 | Environment-based configuration | All runtime config via environment variables; no code changes needed for config updates |
 | Database migrations | SQLAlchemy models with `init_db()` auto-creation; Alembic-ready for schema migrations |
 
