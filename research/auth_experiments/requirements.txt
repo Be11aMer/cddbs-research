@@ -1,0 +1,4 @@
+# Auth experiment dependencies
+# Install: pip install -r requirements.txt
+
+cryptography>=42.0    # Ed25519 key generation, signing, verification

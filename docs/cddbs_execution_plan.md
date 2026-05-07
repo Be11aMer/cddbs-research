@@ -3,7 +3,7 @@
 **Project**: Cyber Disinformation Detection Briefing System (CDDBS)
 **Start Date**: February 3, 2026
 **Delivery Model**: 2-week sprints
-**Last Updated**: 2026-03-28
+**Last Updated**: 2026-04-01
 
 ---
 
@@ -118,22 +118,31 @@ CDDBS is a system for analyzing media outlets and social media accounts for pote
 - **Compliance**: SBOM artifact (CRA Art. 13(15)), pip-audit (CRA Art. 10(4)), AI provenance (EU AI Act Art. 50)
 - See [docs/sprint_8_backlog.md](sprint_8_backlog.md) | [retrospectives/sprint_8.md](../retrospectives/sprint_8.md)
 
-### Sprint 9: AI Trust, Information Security & Compliance Automation (Mar 28, 2026) — COMPLETE
+### Sprint 9: AI Trust, Information Security & Compliance Automation (Mar 28 – Apr 1, 2026) — COMPLETE
 **Target**: v0.9.0 | **Status**: Done
 
-- **AI Trust Framework**: LLM output validation (`output_validator.py`), grounding score (TF-IDF claim verification), confidence calibration
-- **Information Security Hardening**: CORS fix, rate limiting (slowapi), prompt injection prevention (`input_sanitizer.py`), security headers, error sanitization, API key hygiene
-- **Compliance Automation**: Machine-readable `/compliance/evidence` endpoint, custom dependency scanner (replaces Dependabot)
+- **AI Trust Framework**: LLM output validation (`output_validator.py`), grounding score (TF-IDF claim verification, 0.0–1.0 per outlet result)
+- **Information Security Hardening**: CORS hardened (explicit origin list), rate limiting (slowapi, 5/3/5 per min), prompt injection prevention (`input_sanitizer.py`), security headers middleware, error sanitization, API key hygiene (removed from all request schemas)
+- **Compliance Automation**: Machine-readable `/compliance/evidence` endpoint (EU AI Act Art. 12), custom dependency scanner CI workflow (replaces Dependabot)
 - **OWASP LLM Top 10**: LLM01, LLM02, LLM04, LLM06, LLM09 mitigated
 - 35 new tests, 249 total
 - **Compliance**: OWASP LLM Top 10 coverage, EU AI Act Art. 9/12/14, CRA security hardening
 - **Versioning**: Adopted semver `0.x.y` — retagged `v2026.03` → `v0.5.0`
-- See [docs/sprint_9_backlog.md](sprint_9_backlog.md) for details
+- **Intelligence Feed Extensions (post-sprint amendments)**:
+  - Automated Situational Reports (`sitrep.py`) — gated SitRep generation for high-risk clusters on 12h schedule
+  - Cross-source framing analysis piggybacked into SitRep (zero extra API cost)
+  - Threat Digest (`threat_digest.py`) — daily digest + UI-triggered quarterly reports
+  - CddbsScheduler — unified 4-job background orchestrator
+  - Source Credibility Index Phase 4A (`source_credibility.py`) — per-domain reliability scoring at zero API cost
+  - GDELT collector fix — HTML error-page handling + Cloudflare proxy routing
+- **Deferred to Sprint 10**: TrustIndicator.tsx, calibration endpoint, reproducibility score, data retention enforcement, `information_security.md` compliance doc
+- See [docs/sprint_9_backlog.md](sprint_9_backlog.md) | [retrospectives/sprint_9.md](../retrospectives/sprint_9.md)
 
-### Sprint 10: User Authentication & CDDBS-Edge (Apr-May 2026)
-- User authentication and authorization (JWT, role model, session management)
-- CDDBS-Edge Phase 0: Swap Gemini → Ollama, benchmark briefing quality
-- Analyst annotations and comments on briefings
+### Sprint 10: User Authentication, AI Trust Completion & CDDBS-Edge (Apr-May 2026)
+- User authentication and authorization (JWT, RBAC — analyst / admin roles)
+- CDDBS-Edge Phase 0: Swap Gemini → Ollama on laptop, benchmark briefing quality (go/no-go for hardware Phase 1)
+- Carried from Sprint 9: TrustIndicator.tsx, calibration endpoint, reproducibility score, data retention enforcement, `information_security.md` compliance doc
+- Analyst annotations and comments on briefings (if auth lands cleanly)
 
 ### Sprint 11: Collaboration & Advanced Features (May-Jun 2026)
 - Shared analysis workspaces (depends on Sprint 10 auth)
@@ -207,11 +216,13 @@ Demonstrates resilience, digital sovereignty, access equity, and privacy-preserv
 - Infrastructure: Cloudflare Workers (frontend + GDELT proxy), keep-alive workflow
 
 ### Achieved Architecture (v0.9.0)
-- AI trust framework: output validation, grounding score (TF-IDF claim verification), confidence calibration
+- AI trust framework: output validation, grounding score (TF-IDF claim verification)
 - Information security: CORS hardening, rate limiting (slowapi), input sanitization, security headers, error sanitization, API key hygiene
 - Compliance automation: `/compliance/evidence` endpoint, custom dependency scanner (replaces Dependabot)
 - OWASP LLM Top 10: LLM01, LLM02, LLM04, LLM06, LLM09 mitigated
-- 249 tests, 7 CI workflows
+- **Intelligence feed extensions**: CddbsScheduler (4 jobs), automated SitRep + cross-source framing analysis, Threat Digest (daily + quarterly), Source Credibility Index Phase 4A (per-domain reliability at zero API cost), GDELT collector fix
+- **New frontend**: ThreatBriefingsPanel, ThreatBriefingDetail, SourceCredibilityPanel, IntelFeed, CollectorStatusBar, AnnotatedArticleCards
+- 249 tests, 8 CI workflows (added dependency-scan.yml)
 
 ### Target Architecture (v0.10.0+)
 - User authentication and authorization (JWT, RBAC)

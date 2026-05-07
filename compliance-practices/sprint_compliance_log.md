@@ -1,6 +1,6 @@
 # Sprint-by-Sprint Compliance Log
 
-**Last Updated**: 2026-03-28
+**Last Updated**: 2026-04-01
 **Purpose**: Track what compliance-relevant measures were implemented in each sprint
 
 ---
@@ -174,6 +174,29 @@ Sprint 9 was reprioritized to address security hardening before authentication (
 
 ---
 
+---
+
+## Sprint 9 Amendments: Intelligence Feed Extensions (Apr 1, 2026)
+
+These measures were delivered as post-sprint amendments to v0.9.0, extending the intelligence feed pipeline.
+
+### Compliance Measures Implemented
+
+| Measure | Regulation | Description |
+|---------|-----------|-------------|
+| **Automated SitRep generation** | EU AI Act Art. 14 | Human-oversight-preserving: SitReps are generated automatically but require analyst review; risk-gating (score ≥ 0.5, articles ≥ 5) prevents noise flooding analyst queues |
+| **Cross-source framing analysis** | EU AI Act Art. 14 | Per-source bias direction, coordination indicators, and framing divergence score provide interpretable signals for human oversight — not black-box conclusions |
+| **Source Credibility Index** | EU AI Act Art. 9 | Deterministic, formula-based reliability scoring (no LLM involvement); formula and weights documented; fully reproducible and auditable |
+| **Framing divergence score** | EU AI Act Art. 50 | Exposes how individual sources deviate from cross-source consensus; analyst-facing transparency measure |
+| **Trend direction tracking** | EU AI Act Art. 14 | `improving` / `stable` / `degrading` trend per domain alerts analysts to shifting source behaviour |
+| **Quarterly report UI-trigger only** | EU AI Act Art. 13 | High-cost reports require explicit human initiation; not automated — prevents uncontrolled Gemini budget usage |
+| **GDELT proxy routing** | CRA Art. 10 | All GDELT requests routed through controlled Cloudflare Workers proxy; direct GDELT API no longer exposed from backend |
+
+### Key Decision
+Intelligence feed extensions follow the same zero-LLM-cost design principle established in Phase 4A: Source Credibility Index uses only local computation. Framing analysis reuses existing Gemini calls. This keeps the compliance burden low — no new AI systems introduced, only new aggregations of existing data.
+
+---
+
 ## Compliance Maturity Timeline
 
 ```
@@ -194,8 +217,9 @@ Sprint 7 ─── Documentation & Audit (compliance practices, recursive verifi
 Sprint 8 ─── SBOM artifact, vulnerability scanning, AI provenance UI, supply chain hardening ✓ COMPLETE
     │
 Sprint 9 ─── AI trust, information security, compliance automation ✓ COMPLETE
+    │         + Intelligence feed extensions: SitRep, framing, digest, Source Credibility Index ✓
     │
-Sprint 10 ── User authentication, CDDBS-Edge Phase 0  ← NEXT
+Sprint 10 ── User authentication, AI trust completion (TrustIndicator, calibration), CDDBS-Edge Phase 0  ← NEXT
 ```
 
 ---
@@ -205,7 +229,7 @@ Sprint 10 ── User authentication, CDDBS-Edge Phase 0  ← NEXT
 | Metric | Value |
 |--------|-------|
 | Sprints with compliance measures | 9/9 (100%) |
-| Automated CI compliance checks | 7 (secret scan, docs drift, branch policy, lint, SBOM, pip-audit, dependency-scan) |
+| Automated CI compliance checks | 8 (secret scan, docs drift, branch policy, lint, SBOM, pip-audit, dependency-scan, keep-alive) |
 | Test count | 249 (Sprint 9: 214 + 35 new) |
 | Documentation pages | 10+ production docs, 18+ sprint docs, 5 blog posts, 7 compliance docs |
 | Security-specific files | SECURITY.md, CODEOWNERS, detect_secrets.py, secret-scan.yml, sbom.yml, dependency-scan.yml, security_headers.py, input_sanitizer.py |
